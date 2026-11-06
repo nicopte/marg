@@ -1,0 +1,83 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  isActive  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  dni       DniData?
+
+  // ===== Sistema de referidos =====
+  referralCode String? @unique // código propio con el que otros lo invitan
+  referredById String? // quién lo invitó
+  referredBy   User?   @relation("Referrals", fields: [referredById], references: [id], onDelete: SetNull)
+  referrals    User[]  @relation("Referrals")
+
+  // ===== Wallet (tokens + saldo de descuento) =====
+  tokens          Int     @default(0) // tokens comprados disponibles
+  referralBalance Float   @default(0) // saldo de descuento acumulado por referidos ($)
+
+  purchases     TokenPurchase[]
+  referralRewards ReferralReward[]
+}
+
+model TokenPurchase {
+  id            String   @id @default(cuid())
+  userId        String
+  packId        String
+  packLabel     String
+  tokens        Int
+  listPrice     Float // precio de lista en ARS
+  discount      Float   @default(0) // descuento aplicado (saldo de referidos)
+  finalPrice    Float // precio final pagado
+  createdAt     DateTime @default(now())
+
+  user  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reward ReferralReward?
+
+  @@index([userId])
+}
+
+model ReferralReward {
+  id         String   @id @default(cuid())
+  referrerId String // el que compartió la app
+  purchaseId String   @unique
+  amount     Float // % del precio pagado por el referido
+  createdAt  DateTime @default(now())
+
+  referrer User            @relation(fields: [referrerId], references: [id], onDelete: Cascade)
+  purchase TokenPurchase   @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+
+  @@index([referrerId])
+}
+
+model DniData {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  nombre          String
+  apellido        String
+  dniNumero       String
+  domicilio       String
+  nacimiento      String
+  fechaEmision    String
+  sexo            String
+  firma           String?  // base64 encoded signature
+  foto            String?  // base64 encoded photo
+  userId_value    String   // The DNI document number for display
+  tramiteNumero   String   // Tramite number
+  ejemplar        String   @default("A")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
