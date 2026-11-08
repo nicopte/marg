@@ -43,6 +43,9 @@ import {
 // HELPERS & SHARED CONSTANTS
 // ========================================
 const SYS_FONT = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+// Mismo stack que la referencia para títulos/etiquetas de la grilla
+// ("Mula Rounded" no está cargado en la referencia: cae en sans-serif).
+const MULA_FONT = "'Mula Rounded', 'MulaRounded', sans-serif";
 const DNI_TEAL = '#5b8fa8';
 const DNI_TEAL_LIGHT = '#7aafca';
 const DNI_PINK = '#e8b4b8';
@@ -827,6 +830,7 @@ function HomeView() {
   const [showAdminPrompt, setShowAdminPrompt] = useState(false);
   const [adminPass, setAdminPass] = useState('');
   const [adminError, setAdminError] = useState('');
+  const [newsDismissed, setNewsDismissed] = useState(false);
 
   const handleLogoTap = () => {
     tapCountRef.current += 1;
@@ -850,38 +854,57 @@ function HomeView() {
     }
   };
 
-  // Iconos de línea generados en scripts/generate-icons.mjs: todos cuadrados
-  // y con el mismo ajuste para que la grilla quede pareja.
+  // Tiles de servicios: mismos assets, tamaños y escalado que el sitio de
+  // referencia (argentina-hazel.vercel.app), para replicar su grilla exacta.
   const services = [
-    { icon: '/icons/serv-tramites.png', label: 'Documentos', action: () => setView('documentos'), iconMaxW: '76%', iconMaxH: '66%', textMT: '0px', textMB: '0px' },
-    { icon: '/icons/serv-vehiculos.png', label: 'Vehículos', action: () => {}, iconMaxW: '76%', iconMaxH: '66%', textMT: '0px', textMB: '0px' },
-    { icon: '/icons/serv-trabajo.png', label: 'Trabajo', action: () => {}, iconMaxW: '76%', iconMaxH: '66%', textMT: '0px', textMB: '0px' },
-    { icon: '/icons/serv-salud.png', label: 'Salud', action: () => {}, iconMaxW: '76%', iconMaxH: '66%', textMT: '0px', textMB: '0px' },
-    { icon: '/icons/serv-cobros.png', label: 'Cobros', action: () => {}, iconMaxW: '76%', iconMaxH: '66%', textMT: '0px', textMB: '0px' },
-    { icon: '/icons/serv-documentos.png', label: 'Trámites', action: () => {}, iconMaxW: '76%', iconMaxH: '66%', textMT: '0px', textMB: '0px' },
-    { icon: '/icons/serv-turnos.png', label: 'Turnos', action: () => {}, iconMaxW: '76%', iconMaxH: '66%', textMT: '0px', textMB: '0px' },
-    { icon: '/icons/serv-hijos.png', label: 'Hijos', action: () => {}, iconMaxW: '76%', iconMaxH: '66%', textMT: '0px', textMB: '0px' },
+    { icon: '/icons/serv-tramites.webp', label: 'Documentos', action: () => setView('documentos'), w: 49, h: 49, scale: true },
+    { icon: '/icons/serv-vehiculos.webp', label: 'Vehículos', action: () => {}, w: 79, h: 81, scale: true },
+    { icon: '/icons/serv-trabajo.webp', label: 'Trabajo', action: () => {}, w: 42, h: 44, scale: true },
+    { icon: '/icons/serv-salud.webp', label: 'Salud', action: () => {}, w: 52, h: 52, scale: false },
+    { icon: '/icons/serv-cobros.webp', label: 'Cobros', action: () => {}, w: 48, h: 48, scale: true },
+    { icon: '/icons/serv-documentos.webp', label: 'Trámites', action: () => {}, w: 48, h: 48, scale: true },
+    { icon: '/icons/serv-turnos.webp', label: 'Turnos', action: () => {}, w: 52, h: 52, scale: false },
+    { icon: '/icons/serv-hijos.webp', label: 'Hijos', action: () => {}, w: 45, h: 45, scale: true },
   ];
 
-  return (
-    <div style={{ backgroundColor: '#f5f5f5', minHeight: '100vh', paddingBottom: '70px' }}>
-      {/* Header */}
-      <header style={{ background: '#3730ba', padding: '50px 16px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <button onClick={logout} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }}><Menu size={24} /></button>
-        <span onClick={handleLogoTap} style={{ color: '#fff', fontSize: '16px', fontWeight: 600, fontFamily: SYS_FONT, cursor: 'pointer', userSelect: 'none' }}><span style={{ fontStyle: 'italic', fontWeight: 400 }}>mi</span>Argentina</span>
-        <button onClick={logout} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}>
-          <User size={22} />
-          <ChevronDown size={16} />
-        </button>
-      </header>
+  // Barra inferior: mismos assets y filtros que la referencia.
+  const navItems = [
+    { key: 'home', label: 'Inicio', icon: '/icons/logo-CASA.webp', iconStyle: { height: '30px', width: '26px' }, action: () => setView('home') },
+    { key: 'novedades', label: 'Novedades', icon: '/icons/novedadesGRIS.webp', activeIcon: '/icons/novedadesVIOLETA.webp', iconStyle: { height: '37px', width: '80px', marginLeft: '3px' }, action: () => {} },
+    { key: 'telefonos', label: 'Teléfonos', icon: '/icons/logo-TELEFONO.webp', iconStyle: { height: '37px', width: '50px', marginLeft: '-3px' }, action: () => {} },
+    { key: 'usuario', label: 'Usuario', icon: '/icons/logo-USUARIO.webp', activeIcon: '/icons/logo-USUARIO.webp', iconStyle: { height: '30px', width: '24px' }, action: () => {} },
+  ];
+  const activeTab = 'home';
 
-      {/* Greeting Section */}
-      <div style={{ padding: '14px 16px 0' }}>
-        <h1 style={{ fontSize: '22px', fontWeight: 700, color: '#212121', fontFamily: SYS_FONT, margin: '0 0 4px' }}>¡Hola {nombre}!</h1>
-        <p style={{ fontSize: '14px', color: '#757575', fontFamily: SYS_FONT, margin: 0, lineHeight: 1.4 }}>Gestioná trámites, sacá turnos, accedé a tus credenciales y recibí información personalizada.</p>
+  return (
+    <div style={{ backgroundColor: '#f0f0f0', minHeight: '100vh', paddingBottom: '70px' }}>
+      {/* Barra de estado (bloque morado superior de la referencia) */}
+      <div style={{ height: '44px', background: '#362FC1' }} />
+
+      {/* Header */}
+      <div style={{ background: '#362FC1', height: '60px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', position: 'relative', userSelect: 'none' }}>
+        <button onClick={logout} aria-label="Menú" style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px' }}>
+          <Menu size={26} color="#fff" />
+        </button>
+        <span onClick={handleLogoTap} style={{ color: '#fff', fontSize: '26px', fontWeight: 700, fontFamily: SYS_FONT, cursor: 'pointer', userSelect: 'none', position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
+          <span style={{ color: '#7098DB' }}>mi</span>Argentina
+        </span>
+        <div style={{ width: '38px', height: '38px', position: 'relative' }}>
+          <div style={{ width: '38px', height: '38px', borderRadius: '50%', overflow: 'hidden' }}>
+            <img src="/icons/profile-user.webp" alt="Perfil" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          </div>
+          <div style={{ position: 'absolute', right: 0, bottom: 0, width: '15px', height: '15px', borderRadius: '50%', background: '#34a853', border: '2px solid #fff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Check size={8} color="#fff" strokeWidth={4} />
+          </div>
+        </div>
       </div>
 
-      {/* Pending activation notice */}
+      {/* Saludo dentro del bloque morado */}
+      <div style={{ background: '#362FC1', textAlign: 'center', paddingTop: '3.5%', paddingBottom: '6%', borderBottomLeftRadius: '30px', borderBottomRightRadius: '30px', position: 'relative', zIndex: 1 }}>
+        <h1 style={{ fontSize: '20px', fontWeight: 400, color: '#fff', fontFamily: SYS_FONT, margin: 0, padding: '0 16px' }}>¡Hola {nombre}!</h1>
+      </div>
+
+      {/* Aviso de cuenta pendiente de activación */}
       {!isActive && (
         <div style={{ background: '#fff3e0', margin: '12px 12px 0', borderRadius: '10px', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '12px', border: '1px solid #ffcc80' }}>
           <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#ff9800', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
@@ -894,108 +917,101 @@ function HomeView() {
         </div>
       )}
 
-      {/* Wallet & Referidos quick access */}
+      {/* Aviso de novedades descartable (estilo referencia) */}
+      {!newsDismissed && (
+        <div style={{ background: '#fff', margin: '12px 12px 0', borderRadius: '14px', padding: '16px', position: 'relative', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+          <button onClick={() => setNewsDismissed(true)} aria-label="Cerrar aviso" style={{ position: 'absolute', top: '10px', right: '10px', background: 'none', border: 'none', cursor: 'pointer', padding: '4px', color: '#757575', display: 'flex' }}>
+            <X size={18} />
+          </button>
+          <p style={{ margin: '0 28px 6px 0', fontSize: '18px', fontWeight: 700, color: '#212121', fontFamily: SYS_FONT, lineHeight: 1.3 }}>Prevengamos el dengue: seguí las recomendaciones</p>
+          <p style={{ margin: 0, fontSize: '14px', color: '#616161', fontFamily: SYS_FONT, lineHeight: 1.45 }}>Es muy importante descartar objetos que puedan servir de criadero. Para más información ingresá a argentina.gob.ar/dengue</p>
+        </div>
+      )}
+
+      {/* Tarjeta de turnos (estilo referencia: ilustración + botón morado) */}
+      <div style={{ background: '#fff', margin: '12px 12px 0', borderRadius: '14px', padding: '18px 20px', display: 'flex', alignItems: 'center', gap: '16px', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+        <img src="/icons/ticket-turnos.png" alt="" style={{ height: '80px', width: 'auto', objectFit: 'contain', flexShrink: 0 }} />
+        <div>
+          <p style={{ margin: 0, fontSize: '17px', fontWeight: 700, color: '#333333', fontFamily: SYS_FONT, lineHeight: 1.3 }}>No tenés turnos programados</p>
+          <button style={{ marginTop: '10px', background: '#362FC1', color: '#fff', border: 'none', borderRadius: '22px', padding: '9px 26px', fontSize: '14px', fontWeight: 600, fontFamily: SYS_FONT, cursor: 'pointer' }}>Sacá turno</button>
+        </div>
+      </div>
+
+      {/* Tarjeta verde de credenciales (imagen de la referencia) */}
+      <div style={{ margin: (!isActive || !newsDismissed) ? '12px 12px 0' : '-4% 12px 0', borderRadius: '10px', overflow: 'hidden', position: 'relative', zIndex: 2 }}>
+        <img src="/credenciales.webp" alt="Todas tus credenciales están al día" style={{ width: '100%', aspectRatio: '1077 / 298', objectFit: 'cover', display: 'block' }} />
+      </div>
+
+      {/* Accesos rápidos: tokens y referidos */}
       <div style={{ display: 'flex', gap: '8px', margin: '12px 12px 0' }}>
-        <button onClick={() => setView('tokens')} style={{ flex: 1, background: '#eef0ff', border: '1px solid #d6d9ff', borderRadius: '10px', padding: '12px 12px 11px', textAlign: 'left', cursor: 'pointer', fontFamily: SYS_FONT, display: 'flex', flexDirection: 'column', gap: '2px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Coins size={16} color="#3730ba" />
-            <span style={{ fontSize: '12px', fontWeight: 600, color: '#3730ba' }}>Tus tokens</span>
+        <button onClick={() => setView('tokens')} style={{ flex: 1, background: '#fff', border: 'none', borderRadius: '14px', padding: '10px 12px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', textAlign: 'left', fontFamily: SYS_FONT }}>
+          <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: '#ecebff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Coins size={16} color="#362FC1" />
           </div>
-          <span style={{ fontSize: '19px', fontWeight: 700, color: '#212121', lineHeight: 1.2 }}>{user?.tokens ?? 0}</span>
-          <span style={{ fontSize: '11px', color: '#757575' }}>Comprar tokens →</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: 0, fontSize: '11px', color: '#757575', fontWeight: 600 }}>Tus tokens</p>
+            <p style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#212121', lineHeight: 1.25 }}>{user?.tokens ?? 0}</p>
+          </div>
+          <ChevronRight size={16} color="#9e9e9e" />
         </button>
-        <button onClick={() => setView('referidos')} style={{ flex: 1, background: '#fff0f5', border: '1px solid #ffd9e6', borderRadius: '10px', padding: '12px 12px 11px', textAlign: 'left', cursor: 'pointer', fontFamily: SYS_FONT, display: 'flex', flexDirection: 'column', gap: '2px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <button onClick={() => setView('referidos')} style={{ flex: 1, background: '#fff', border: 'none', borderRadius: '14px', padding: '10px 12px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', textAlign: 'left', fontFamily: SYS_FONT }}>
+          <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: '#ffeef4', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <Gift size={16} color="#e91e63" />
-            <span style={{ fontSize: '12px', fontWeight: 600, color: '#e91e63' }}>Referidos</span>
           </div>
-          <span style={{ fontSize: '19px', fontWeight: 700, color: '#212121', lineHeight: 1.2 }}>{formatARS(user?.referralBalance ?? 0)}</span>
-          <span style={{ fontSize: '11px', color: '#757575' }}>Invitar amigos →</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ margin: 0, fontSize: '11px', color: '#757575', fontWeight: 600 }}>Referidos</p>
+            <p style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#212121', lineHeight: 1.25 }}>{formatARS(user?.referralBalance ?? 0)}</p>
+          </div>
+          <ChevronRight size={16} color="#9e9e9e" />
         </button>
       </div>
 
-      {/* Mundial Card - 1077×298 @3x → 359×99px display */}
+      {/* ¿Qué necesitás hoy? */}
       <div style={{ margin: '12px 12px 0' }}>
-        <img src="/card-mundial.png" alt="Viví el Mundial 2026" style={{ width: '100%', aspectRatio: '1077 / 298', borderRadius: '10px', objectFit: 'cover', display: 'block' }} />
-      </div>
-
-      {/* Turnos Card - 1076×360 @3x → 359×120px display */}
-      <div style={{ margin: '8px 12px 0' }}>
-        <img src="/card-turnos.png" alt="No tenés turnos programados" style={{ width: '100%', aspectRatio: '1076 / 360', borderRadius: '10px', objectFit: 'cover', display: 'block' }} />
-      </div>
-
-      {/* ¿Qué necesitás hoy? Section */}
-      <div style={{ margin: '12px 12px 0' }}>
-        <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#212121', fontFamily: SYS_FONT, margin: '0 0 6px' }}>¿Qué necesitás hoy?</h3>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
+        <h3 style={{ fontSize: '20px', fontWeight: 700, color: 'rgb(51, 51, 51)', fontFamily: MULA_FONT, margin: '16px 0 8px', textAlign: 'left' }}>¿Qué necesitás hoy?</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
           {services.map((s, i) => (
-            <button key={i} onClick={s.action} style={{ background: '#fff', border: 'none', borderRadius: '10px', aspectRatio: '1 / 1.15', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '4px', cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', transition: 'transform 0.2s', fontFamily: SYS_FONT }}>
-              <img src={s.icon} alt={s.label} style={{ maxWidth: s.iconMaxW, maxHeight: s.iconMaxH, objectFit: 'contain' }} />
-              <span style={{ fontSize: '11px', color: '#212121', fontWeight: 400, fontFamily: SYS_FONT, textAlign: 'center', lineHeight: 1.2, marginTop: s.textMT, marginBottom: s.textMB }}>{s.label}</span>
+            <button key={i} onClick={s.action} style={{ background: '#fff', border: 'none', borderRadius: '17px', height: '82px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', transition: 'transform 0.2s', fontFamily: SYS_FONT }}>
+              <div style={{ height: '60px', width: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <img src={s.icon} alt={s.label} style={{ width: `${s.w}px`, height: `${s.h}px`, objectFit: 'contain', transform: s.scale ? 'scale(1.8)' : undefined }} />
+              </div>
+              <span style={{ fontSize: '11px', color: 'rgb(51, 51, 51)', fontWeight: 700, fontFamily: MULA_FONT, textAlign: 'center', lineHeight: 1.2, marginTop: '-3px' }}>{s.label}</span>
             </button>
           ))}
         </div>
       </div>
 
-      {/* Próximo feriado Card */}
-      <div style={{ background: '#e3f2fd', margin: '12px 12px 0', borderRadius: '10px', padding: '12px 14px', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-        <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#3730ba', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: '2px' }}>
-          <Calendar size={18} color="#fff" />
+      {/* Carrusel de tarjetas (perfil / más información) */}
+      <div className="hide-scrollbar" style={{ margin: '52px 12px 0', display: 'flex', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+        <div style={{ flex: '0 0 calc(100% - 40px)', marginRight: '8px', borderRadius: '17px', overflow: 'hidden' }}>
+          <img src="/perfil.webp" alt="Mantené tu perfil actualizado" style={{ width: '100%', aspectRatio: '1077 / 298', borderRadius: '17px', objectFit: 'cover', display: 'block' }} />
         </div>
-        <div style={{ flex: 1 }}>
-          <p style={{ margin: 0, fontSize: '13px', fontWeight: 600, color: '#212121', fontFamily: SYS_FONT }}>Próximo feriado</p>
-          <p style={{ margin: '4px 0 2px', fontSize: '15px', fontWeight: 700, color: '#212121', fontFamily: SYS_FONT }}>15 de Junio</p>
-          <p style={{ margin: 0, fontSize: '12px', color: '#616161', fontFamily: SYS_FONT, lineHeight: 1.4 }}>17 de junio. Paso a la Inmortalidad del Gral. Don Martín Miguel de Güemes.</p>
+        <div style={{ flex: '0 0 calc(100% - 40px)', borderRadius: '17px', overflow: 'hidden' }}>
+          <img src="/cartel-secundario.webp" alt="Más información" style={{ width: '100%', aspectRatio: '1077 / 298', borderRadius: '17px', objectFit: 'cover', display: 'block' }} />
         </div>
       </div>
 
-      {/* Mantené tu perfil actualizado Card */}
-      <div style={{ background: '#fce4ec', margin: '8px 12px 0', borderRadius: '10px', padding: '10px 14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#e91e63', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <User size={18} color="#fff" />
+      {/* Navegación inferior */}
+      <div style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '390px', background: '#fff', borderTop: '1px solid #e0e0e0', display: 'flex', flexDirection: 'column', padding: '6px 0 0', zIndex: 50 }}>
+        <div style={{ display: 'flex', width: '100%', paddingBottom: '4px' }}>
+          {navItems.map((item) => {
+            const active = activeTab === item.key;
+            const src = active && item.activeIcon ? item.activeIcon : item.icon;
+            const filter = item.activeIcon
+              ? 'none'
+              : active
+                ? 'brightness(0) saturate(100%) invert(22%) sepia(95%) saturate(3000%) hue-rotate(240deg)'
+                : 'brightness(0) saturate(0%) invert(46%)';
+            return (
+              <button key={item.key} onClick={item.action} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2px', padding: '2px 0', flex: 1 }}>
+                <div style={{ height: '37px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <img src={src} alt={item.label} style={{ ...item.iconStyle, objectFit: 'contain', filter }} />
+                </div>
+                <span style={{ fontSize: '12px', color: active ? '#362FC1' : '#757575', fontWeight: active ? 600 : 400, fontFamily: SYS_FONT }}>{item.label}</span>
+              </button>
+            );
+          })}
         </div>
-        <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#212121', fontFamily: SYS_FONT, textDecoration: 'underline', flex: 1 }}>Mantené tu perfil actualizado</p>
-        <ChevronRight size={20} color="#757575" />
-      </div>
-
-      {/* Bottom Navigation Bar */}
-      <div style={{
-        position: 'fixed',
-        bottom: 0,
-        left: '50%',
-        transform: 'translateX(-50%)',
-        width: '100%',
-        maxWidth: '390px',
-        background: '#fff',
-        borderTop: '1px solid #e0e0e0',
-        display: 'flex',
-        padding: '6px 0 8px',
-        zIndex: 50,
-      }}>
-        <button style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2px', padding: '2px 0', flex: 1 }}>
-          <div style={{ height: '37px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <img src="/icons/logo-CASA.png" alt="Inicio" style={{ height: '24px', width: '24px', objectFit: 'contain' }} />
-          </div>
-          <span style={{ fontSize: '12px', color: '#3730ba', fontWeight: 600, fontFamily: SYS_FONT }}>Inicio</span>
-        </button>
-        <button style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2px', padding: '2px 0', flex: 1 }}>
-          <div style={{ height: '37px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <img src="/icons/logo-NOVEDADES.png" alt="Novedades" style={{ height: '37px', width: '80px', objectFit: 'contain' }} />
-          </div>
-          <span style={{ fontSize: '12px', color: '#757575', fontFamily: SYS_FONT }}>Novedades</span>
-        </button>
-        <button style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2px', padding: '2px 0', flex: 1 }}>
-          <div style={{ height: '37px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <img src="/icons/logo-TELEFONO.png" alt="Teléfonos" style={{ height: '37px', width: '50px', objectFit: 'contain' }} />
-          </div>
-          <span style={{ fontSize: '12px', color: '#757575', fontFamily: SYS_FONT }}>Teléfonos</span>
-        </button>
-        <button style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2px', padding: '2px 0', flex: 1 }}>
-          <div style={{ height: '37px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <img src="/icons/logo-USUARIO.png" alt="Usuario" style={{ height: '24px', width: '24px', objectFit: 'contain' }} />
-          </div>
-          <span style={{ fontSize: '12px', color: '#757575', fontFamily: SYS_FONT }}>Usuario</span>
-        </button>
       </div>
 
       {/* Admin Password Modal */}
@@ -1023,7 +1039,7 @@ function HomeView() {
               <button onClick={() => setShowAdminPrompt(false)} style={{ flex: 1, padding: '12px', border: '2px solid #e0e0e0', borderRadius: '10px', background: '#fff', color: '#757575', fontSize: '14px', fontWeight: 600, cursor: 'pointer', fontFamily: SYS_FONT }}>
                 Cancelar
               </button>
-              <button onClick={handleAdminLogin} style={{ flex: 1, padding: '12px', border: 'none', borderRadius: '10px', background: '#3730ba', color: '#fff', fontSize: '14px', fontWeight: 600, cursor: 'pointer', fontFamily: SYS_FONT }}>
+              <button onClick={handleAdminLogin} style={{ flex: 1, padding: '12px', border: 'none', borderRadius: '10px', background: '#362FC1', color: '#fff', fontSize: '14px', fontWeight: 600, cursor: 'pointer', fontFamily: SYS_FONT }}>
                 Entrar
               </button>
             </div>

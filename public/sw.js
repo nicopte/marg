@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mi-argentina-v1';
+const CACHE_NAME = 'mi-argentina-v2';
 
 // Files to pre-cache for offline support
 const PRE_CACHE_URLS = [
@@ -14,22 +14,27 @@ const PRE_CACHE_URLS = [
   '/sample_dniphoto.png',
   '/sample_signature.png',
   '/card-mundial.png',
-  '/card-turnos.png',
-  '/icons/logo-CASA.png',
-  '/icons/logo-NOVEDADES.png',
-  '/icons/logo-TELEFONO.png',
-  '/icons/logo-USUARIO.png',
+  '/icons/ticket-turnos.png',
+  '/credenciales.webp',
+  '/perfil.webp',
+  '/cartel-secundario.webp',
+  '/icons/profile-user.webp',
+  '/icons/logo-CASA.webp',
+  '/icons/novedadesGRIS.webp',
+  '/icons/novedadesVIOLETA.webp',
+  '/icons/logo-TELEFONO.webp',
+  '/icons/logo-USUARIO.webp',
   '/icons/logo-ojo.png',
   '/icons/logo-X.png',
   '/icons/logo-QR.png',
-  '/icons/serv-tramites.png',
-  '/icons/serv-vehiculos.png',
-  '/icons/serv-trabajo.png',
-  '/icons/serv-salud.png',
-  '/icons/serv-cobros.png',
-  '/icons/serv-documentos.png',
-  '/icons/serv-turnos.png',
-  '/icons/serv-hijos.png',
+  '/icons/serv-tramites.webp',
+  '/icons/serv-vehiculos.webp',
+  '/icons/serv-trabajo.webp',
+  '/icons/serv-salud.webp',
+  '/icons/serv-cobros.webp',
+  '/icons/serv-documentos.webp',
+  '/icons/serv-turnos.webp',
+  '/icons/serv-hijos.webp',
 ];
 
 // Install: pre-cache essential files
