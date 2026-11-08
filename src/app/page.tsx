@@ -850,15 +850,17 @@ function HomeView() {
     }
   };
 
+  // Iconos de línea generados en scripts/generate-icons.mjs: todos cuadrados
+  // y con el mismo ajuste para que la grilla quede pareja.
   const services = [
-    { icon: '/icons/serv-tramites.png', label: 'Documentos', action: () => setView('documentos'), iconMaxW: '94%', iconMaxH: '100%', textMT: '0px', textMB: '0px' },
-    { icon: '/icons/serv-vehiculos.png', label: 'Vehículos', action: () => {}, iconMaxW: '140%', iconMaxH: '114%', textMT: '-19px', textMB: '0px' },
-    { icon: '/icons/serv-trabajo.png', label: 'Trabajo', action: () => {}, iconMaxW: '94%', iconMaxH: '100%', textMT: '0px', textMB: '0px' },
-    { icon: '/icons/serv-salud.png', label: 'Salud', action: () => {}, iconMaxW: '118%', iconMaxH: '62%', textMT: '-7px', textMB: '0px' },
-    { icon: '/icons/serv-cobros.png', label: 'Cobros', action: () => {}, iconMaxW: '121%', iconMaxH: '129%', textMT: '-12px', textMB: '0px' },
-    { icon: '/icons/serv-documentos.png', label: 'Trámites', action: () => {}, iconMaxW: '117%', iconMaxH: '125%', textMT: '-7px', textMB: '0px' },
-    { icon: '/icons/serv-turnos.png', label: 'Turnos', action: () => {}, iconMaxW: '70%', iconMaxH: '124%', textMT: '-2px', textMB: '0px' },
-    { icon: '/icons/serv-hijos.png', label: 'Hijos', action: () => {}, iconMaxW: '94%', iconMaxH: '100%', textMT: '6px', textMB: '0px' },
+    { icon: '/icons/serv-tramites.png', label: 'Documentos', action: () => setView('documentos'), iconMaxW: '76%', iconMaxH: '66%', textMT: '0px', textMB: '0px' },
+    { icon: '/icons/serv-vehiculos.png', label: 'Vehículos', action: () => {}, iconMaxW: '76%', iconMaxH: '66%', textMT: '0px', textMB: '0px' },
+    { icon: '/icons/serv-trabajo.png', label: 'Trabajo', action: () => {}, iconMaxW: '76%', iconMaxH: '66%', textMT: '0px', textMB: '0px' },
+    { icon: '/icons/serv-salud.png', label: 'Salud', action: () => {}, iconMaxW: '76%', iconMaxH: '66%', textMT: '0px', textMB: '0px' },
+    { icon: '/icons/serv-cobros.png', label: 'Cobros', action: () => {}, iconMaxW: '76%', iconMaxH: '66%', textMT: '0px', textMB: '0px' },
+    { icon: '/icons/serv-documentos.png', label: 'Trámites', action: () => {}, iconMaxW: '76%', iconMaxH: '66%', textMT: '0px', textMB: '0px' },
+    { icon: '/icons/serv-turnos.png', label: 'Turnos', action: () => {}, iconMaxW: '76%', iconMaxH: '66%', textMT: '0px', textMB: '0px' },
+    { icon: '/icons/serv-hijos.png', label: 'Hijos', action: () => {}, iconMaxW: '76%', iconMaxH: '66%', textMT: '0px', textMB: '0px' },
   ];
 
   return (
