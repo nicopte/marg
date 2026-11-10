@@ -37,6 +37,10 @@ import {
   Gift,
   ShoppingBag,
   Sparkles,
+  Smartphone,
+  Download,
+  Share,
+  Pencil,
 } from 'lucide-react';
 
 // ========================================
@@ -334,7 +338,58 @@ function MercosurLogo({ size = 20 }: { size?: number }) {
 // MAIN APP COMPONENT
 // ========================================
 export default function MiArgentinaApp() {
-  const { view, _hasHydrated } = useAppStore();
+  const { view, _hasHydrated, setView } = useAppStore();
+  // Promesa PWA pendiente (beforeinstallprompt) y estado de instalación
+  const [deferredPrompt, setDeferredPrompt] = useState<{
+    prompt: () => Promise<void>;
+    userChoice: Promise<{ outcome: string }>;
+  } | null>(null);
+  const [isInstalled, setIsInstalled] = useState(false);
+
+  useEffect(() => {
+    const detect = () =>
+      setIsInstalled(
+        window.matchMedia('(display-mode: standalone)').matches ||
+        (navigator as Navigator & { standalone?: boolean }).standalone === true
+      );
+    const onBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e as unknown as { prompt: () => Promise<void>; userChoice: Promise<{ outcome: string }> });
+    };
+    const onAppInstalled = () => {
+      setIsInstalled(true);
+      setDeferredPrompt(null);
+      if (useAppStore.getState().view === 'install-guide') useAppStore.getState().setView('home');
+    };
+    const mql = window.matchMedia('(display-mode: standalone)');
+    detect();
+    window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt);
+    window.addEventListener('appinstalled', onAppInstalled);
+    mql.addEventListener('change', detect);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', onAppInstalled);
+      mql.removeEventListener('change', detect);
+    };
+  }, []);
+
+  const handleInstall = async (): Promise<boolean> => {
+    if (!deferredPrompt) return false;
+    const promptEvent = deferredPrompt;
+    setDeferredPrompt(null);
+    try {
+      await promptEvent.prompt();
+      const choice = await promptEvent.userChoice;
+      if (choice.outcome === 'accepted') {
+        setIsInstalled(true);
+        setView('home');
+        return true;
+      }
+    } catch (err) {
+      console.error('No se pudo abrir el aviso de instalación:', err);
+    }
+    return false;
+  };
 
   useEffect(() => {
     const hide = () => {
@@ -362,9 +417,13 @@ export default function MiArgentinaApp() {
       <div className="w-full" style={{ maxWidth: '390px', overflow: 'hidden', minHeight: '100vh' }}>
         {view === 'login' && <LoginView />}
         {view === 'register' && <RegisterView />}
+        {view === 'install-guide' && (
+          <InstallGuideView isInstalled={isInstalled} canInstall={!!deferredPrompt} onInstall={handleInstall} />
+        )}
         {view === 'home' && <HomeView />}
         {view === 'documentos' && <DocumentosView />}
         {view === 'dni-viewer' && <DniViewerView />}
+        {view === 'dni-edit' && <DniEditView />}
         {view === 'admin' && <AdminView />}
         {view === 'tokens' && <TokensView />}
         {view === 'referidos' && <ReferidosView />}
@@ -553,7 +612,7 @@ function RegisterView() {
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Error al registrarse'); return; }
       setUser(data.user);
-      setView('home');
+      setView('install-guide');
     } catch { setError('Error de conexión'); }
     finally { setLoading(false); }
   };
@@ -991,6 +1050,14 @@ function HomeView() {
         </div>
       </div>
 
+      {/* Entrada a la guía de instalación */}
+      <div style={{ margin: '18px 12px 0' }}>
+        <button onClick={() => setView('install-guide')} style={{ width: '100%', minHeight: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', border: '1px solid #362FC1', borderRadius: '10px', background: '#fff', color: '#362FC1', fontSize: '14px', fontWeight: 600, fontFamily: SYS_FONT, cursor: 'pointer' }}>
+          <Smartphone size={18} aria-hidden="true" />
+          Agregar Mi Argentina a tu pantalla de inicio
+        </button>
+      </div>
+
       {/* Navegación inferior */}
       <div style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '390px', background: '#fff', borderTop: '1px solid #e0e0e0', display: 'flex', flexDirection: 'column', padding: '6px 0 0', zIndex: 50 }}>
         <div style={{ display: 'flex', width: '100%', paddingBottom: '4px' }}>
@@ -1051,6 +1118,316 @@ function HomeView() {
 }
 
 // ========================================
+// INSTALL GUIDE VIEW (tutorial de instalación PWA)
+// ========================================
+interface InstallGuideViewProps {
+  isInstalled: boolean;
+  canInstall: boolean;
+  onInstall: () => Promise<boolean>;
+}
+
+function InstallGuideView({ isInstalled, canInstall, onInstall }: InstallGuideViewProps) {
+  const { setView } = useAppStore();
+  const [platform, setPlatform] = useState<'ios' | 'android' | 'other'>('other');
+  const [installing, setInstalling] = useState(false);
+  const [installFailed, setInstallFailed] = useState(false);
+
+  useEffect(() => {
+    const ua = navigator.userAgent.toLowerCase();
+    const isIpad = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+    setPlatform(/iphone|ipad|ipod/.test(ua) || isIpad ? 'ios' : /android/.test(ua) ? 'android' : 'other');
+  }, []);
+
+  const handleInstall = async () => {
+    setInstalling(true);
+    try {
+      const ok = await onInstall();
+      setInstallFailed(!ok);
+    } finally {
+      setInstalling(false);
+    }
+  };
+
+  const cardStyle: React.CSSProperties = {
+    background: '#fff',
+    borderRadius: '16px',
+    padding: '20px 18px',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+    marginBottom: '16px',
+  };
+  const listStyle: React.CSSProperties = {
+    margin: 0,
+    paddingLeft: '22px',
+    display: 'grid',
+    gap: '8px',
+    fontSize: '13px',
+    lineHeight: 1.5,
+    color: '#424242',
+    fontFamily: SYS_FONT,
+  };
+
+  return (
+    <div style={{ background: '#f0f0f0', minHeight: '100vh', paddingBottom: '24px' }}>
+      <header style={{ background: '#362FC1', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '55px 16px 16px' }}>
+        <button onClick={() => setView('home')} aria-label="Cerrar y continuar a Inicio" style={{ minWidth: '44px', minHeight: '44px', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: 0 }}>
+          <X size={24} />
+        </button>
+        <span style={{ color: '#fff', fontSize: '17px', fontWeight: 600, fontFamily: SYS_FONT }}>Agregar como app</span>
+        <div style={{ width: '44px' }} />
+      </header>
+
+      <main style={{ padding: '20px 16px', maxWidth: '550px', margin: '0 auto' }}>
+        {/* Presentación */}
+        <section style={{ ...cardStyle, padding: '22px 18px' }}>
+          <div style={{ width: '54px', height: '54px', borderRadius: '16px', background: '#eeedff', color: '#362FC1', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '14px' }}>
+            <Smartphone size={28} aria-hidden="true" />
+          </div>
+          <h1 style={{ margin: '0 0 8px', fontSize: '21px', lineHeight: 1.25, fontWeight: 700, color: '#212121', fontFamily: SYS_FONT }}>Tené Mi Argentina a mano</h1>
+          <p style={{ margin: 0, fontSize: '14px', lineHeight: 1.55, color: '#5f6368', fontFamily: SYS_FONT }}>Agregala a la pantalla de inicio para abrirla desde un ícono, como una app.</p>
+          {isInstalled && (
+            <div role="status" style={{ marginTop: '14px', background: '#e8f5e9', border: '1px solid #a5d6a7', borderRadius: '10px', padding: '11px 12px', color: '#256b2b', fontSize: '13px', lineHeight: 1.45, fontFamily: SYS_FONT }}>
+              Este dispositivo ya está usando Mi Argentina como app.
+            </div>
+          )}
+        </section>
+
+        {/* Android / Chrome */}
+        {(platform === 'android' || platform === 'other') && (
+          <section style={cardStyle}>
+            <h2 style={{ margin: '0 0 8px', fontSize: '17px', fontWeight: 700, color: '#212121', fontFamily: SYS_FONT }}>Android</h2>
+            <p style={{ margin: '0 0 14px', fontSize: '13px', lineHeight: 1.5, color: '#5f6368', fontFamily: SYS_FONT }}>Podés instalarla con el aviso del navegador o desde el menú de Chrome.</p>
+            {canInstall && (
+              <button onClick={handleInstall} disabled={installing} style={{ width: '100%', minHeight: '48px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', border: 'none', borderRadius: '10px', background: installing ? '#7772d5' : '#362FC1', color: '#fff', fontSize: '14px', fontWeight: 600, fontFamily: SYS_FONT, cursor: installing ? 'wait' : 'pointer', marginBottom: '14px' }}>
+                <Download size={18} aria-hidden="true" />
+                {installing ? 'Abriendo instalación…' : 'Instalar app'}
+              </button>
+            )}
+            {installFailed && (
+              <p role="status" style={{ margin: '0 0 12px', fontSize: '13px', lineHeight: 1.45, color: '#5f6368', fontFamily: SYS_FONT }}>
+                No pasa nada; también podés agregarla desde el menú de Chrome.
+              </p>
+            )}
+            <ol style={listStyle}>
+              <li>En Chrome, tocá el menú ⋮ de la esquina superior.</li>
+              <li>Elegí «Instalar app» o «Agregar a pantalla de inicio».</li>
+              <li>Confirmá con «Instalar» o «Agregar».</li>
+            </ol>
+          </section>
+        )}
+
+        {/* iPhone / Safari */}
+        {(platform === 'ios' || platform === 'other') && (
+          <section style={cardStyle}>
+            <h2 style={{ margin: '0 0 8px', fontSize: '17px', fontWeight: 700, color: '#212121', fontFamily: SYS_FONT }}>iPhone</h2>
+            <p style={{ margin: '0 0 14px', fontSize: '13px', lineHeight: 1.5, color: '#5f6368', fontFamily: SYS_FONT }}>En iPhone, agregala manualmente desde Safari:</p>
+            <ol style={listStyle}>
+              <li>Abrí esta página en Safari.</li>
+              <li style={{ paddingLeft: '2px' }}>Tocá <span style={{ whiteSpace: 'nowrap' }}>Compartir <Share size={15} aria-hidden="true" style={{ display: 'inline-block', verticalAlign: 'middle' }} /></span>.</li>
+              <li>Deslizá las acciones y elegí «Agregar a pantalla de inicio».</li>
+              <li>Si aparece «Abrir como app web», activalo y tocá «Agregar».</li>
+            </ol>
+            <p style={{ margin: '12px 0 0', fontSize: '12px', lineHeight: 1.45, color: '#777', fontFamily: SYS_FONT }}>
+              Si no ves esa opción, bajá hasta «Editar acciones» y agregala a la lista.
+            </p>
+          </section>
+        )}
+
+        <button onClick={() => setView('home')} style={{ width: '100%', minHeight: '48px', border: '1px solid #362FC1', borderRadius: '10px', background: '#fff', color: '#362FC1', fontSize: '14px', fontWeight: 600, fontFamily: SYS_FONT, cursor: 'pointer' }}>
+          Listo, ir a Inicio
+        </button>
+      </main>
+    </div>
+  );
+}
+
+// ========================================
+// DNI EDIT VIEW (editar el documento cuando quiera)
+// ========================================
+function DniEditView() {
+  const { user, setUser, setView } = useAppStore();
+  const dni = user?.dni;
+  const [nombre, setNombre] = useState(dni?.nombre ?? '');
+  const [apellido, setApellido] = useState(dni?.apellido ?? '');
+  const [dniNumero, setDniNumero] = useState(dni?.dniNumero ?? '');
+  const [domicilio, setDomicilio] = useState(dni?.domicilio ?? '');
+  const [nacimiento, setNacimiento] = useState(dni?.nacimiento ?? '');
+  const [fechaEmision, setFechaEmision] = useState(dni?.fechaEmision ?? '');
+  const [sexo, setSexo] = useState(dni?.sexo ?? '');
+  const [firma, setFirma] = useState<string | null>(dni?.firma ?? null);
+  const [foto, setFoto] = useState<string | null>(dni?.foto ?? null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  const sigCanvasRef = useRef<HTMLCanvasElement>(null);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const startDrawing = (e: React.MouseEvent | React.TouchEvent) => {
+    const canvas = sigCanvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (!canvas || !ctx) return;
+    setIsDrawing(true);
+    const rect = canvas.getBoundingClientRect();
+    const x = ('touches' in e) ? e.touches[0].clientX - rect.left : e.nativeEvent.offsetX;
+    const y = ('touches' in e) ? e.touches[0].clientY - rect.top : e.nativeEvent.offsetY;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+  };
+
+  const draw = (e: React.MouseEvent | React.TouchEvent) => {
+    if (!isDrawing) return;
+    const canvas = sigCanvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (!canvas || !ctx) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = ('touches' in e) ? e.touches[0].clientX - rect.left : e.nativeEvent.offsetX;
+    const y = ('touches' in e) ? e.touches[0].clientY - rect.top : e.nativeEvent.offsetY;
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = '#000';
+    ctx.lineTo(x, y);
+    ctx.stroke();
+  };
+
+  const stopDrawing = () => {
+    setIsDrawing(false);
+    const canvas = sigCanvasRef.current;
+    if (canvas) setFirma(canvas.toDataURL());
+  };
+
+  const clearSignature = () => {
+    const canvas = sigCanvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    if (canvas && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setFirma(null);
+  };
+
+  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => setFoto(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    if (!sexo) { setError('Seleccioná tu sexo'); return; }
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/dni/${user.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nombre, apellido, dniNumero, domicilio, nacimiento, fechaEmision, sexo, firma, foto }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || 'Error al guardar los cambios'); return; }
+      setUser({ ...user, dni: data.dni });
+      setSaved(true);
+      setTimeout(() => setView('documentos'), 700);
+    } catch { setError('Error de conexión'); }
+    finally { setLoading(false); }
+  };
+
+  if (!dni) {
+    return (
+      <div style={{ background: '#f5f5f5', minHeight: '100vh' }}>
+        <header style={{ background: '#3730ba', display: 'flex', alignItems: 'center', padding: '55px 16px 16px' }}>
+          <button onClick={() => setView('documentos')} aria-label="Volver" style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: 0 }}><ArrowLeft size={24} /></button>
+          <span style={{ color: '#fff', fontSize: '17px', fontWeight: 600, fontFamily: SYS_FONT, margin: '0 auto' }}>Editar documento</span>
+          <div style={{ width: 24 }} />
+        </header>
+        <p style={{ padding: '24px 16px', color: '#5f6368', fontSize: '14px', fontFamily: SYS_FONT, textAlign: 'center' }}>Todavía no tenés datos de documento para editar.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ backgroundColor: '#f5f5f5', minHeight: '100vh' }}>
+      <header style={{ background: '#3730ba', display: 'flex', alignItems: 'center', padding: '55px 16px 16px', position: 'sticky', top: 0, zIndex: 50 }}>
+        <button onClick={() => setView('documentos')} aria-label="Volver a Documentos" style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: 0 }}><ArrowLeft size={24} /></button>
+        <span style={{ color: '#fff', fontSize: '17px', fontWeight: 600, fontFamily: SYS_FONT, margin: '0 auto' }}>Editar documento</span>
+        <div style={{ width: 24 }} />
+      </header>
+
+      <div style={{ padding: '16px', maxWidth: '550px', margin: '0 auto' }}>
+        <DniPreviewCard nombre={nombre || 'Nombre'} apellido={apellido || 'Apellido'} dniNumero={dniNumero || '00000000'} sexo={sexo} nacimiento={nacimiento} fechaEmision={fechaEmision} foto={foto} firma={firma} tramiteNumero={dni.tramiteNumero} />
+
+        <div style={{ background: '#f0efff', border: '1px dashed #3730ba', borderRadius: '8px', padding: '10px 12px', margin: '16px 0' }}>
+          <p style={{ margin: 0, fontSize: '13px', color: '#3730ba', fontFamily: SYS_FONT, lineHeight: 1.5 }}>
+            Podés modificar los datos de tu documento cada vez que quieras. Los cambios se reflejan al instante en tu DNI digital.
+          </p>
+        </div>
+
+        <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <RegField label="Nombre" value={nombre} onChange={setNombre} />
+          <RegField label="Apellido" value={apellido} onChange={setApellido} />
+          <RegField label="DNI" value={dniNumero} onChange={setDniNumero} type="number" />
+          <RegField label="Domicilio" value={domicilio} onChange={setDomicilio} />
+
+          <div>
+            <label style={{ color: '#8e8e8e', fontSize: '14px', display: 'block', marginBottom: '4px', fontFamily: SYS_FONT }}>Nacimiento</label>
+            <input type="date" value={nacimiento} onChange={(e) => setNacimiento(e.target.value)} style={{ width: '100%', padding: '10px 12px', border: '1px solid #dbdbdb', borderRadius: '3px', fontSize: '14px', background: '#fafafa', color: '#333', fontFamily: SYS_FONT, boxSizing: 'border-box' }} />
+          </div>
+          <div>
+            <label style={{ color: '#8e8e8e', fontSize: '14px', display: 'block', marginBottom: '4px', fontFamily: SYS_FONT }}>Fecha de emisión</label>
+            <input type="date" value={fechaEmision} onChange={(e) => setFechaEmision(e.target.value)} style={{ width: '100%', padding: '10px 12px', border: '1px solid #dbdbdb', borderRadius: '3px', fontSize: '14px', background: '#fafafa', color: '#333', fontFamily: SYS_FONT, boxSizing: 'border-box' }} />
+          </div>
+
+          <div>
+            <label style={{ color: '#8e8e8e', fontSize: '14px', display: 'block', marginBottom: '4px', fontFamily: SYS_FONT }}>Sexo</label>
+            <div style={{ display: 'flex', gap: '20px', padding: '8px 0' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontFamily: SYS_FONT, fontSize: '14px', color: '#333' }}>
+                <input type="radio" name="sexo-edit" value="M" checked={sexo === 'M'} onChange={() => setSexo('M')} style={{ accentColor: '#3730ba' }} /> Masculino
+              </label>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontFamily: SYS_FONT, fontSize: '14px', color: '#333' }}>
+                <input type="radio" name="sexo-edit" value="F" checked={sexo === 'F'} onChange={() => setSexo('F')} style={{ accentColor: '#3730ba' }} /> Femenino
+              </label>
+            </div>
+          </div>
+
+          <div>
+            <label style={{ color: '#3730ba', fontSize: '14px', fontWeight: 500, display: 'block', marginBottom: '6px', fontFamily: SYS_FONT }}>Firma</label>
+            <div style={{ background: '#fff', borderRadius: '8px', border: '1px solid #dbdbdb', padding: '8px' }}>
+              <canvas ref={sigCanvasRef} width={480} height={120}
+                onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={stopDrawing} onMouseLeave={stopDrawing}
+                onTouchStart={startDrawing} onTouchMove={draw} onTouchEnd={stopDrawing}
+                style={{ width: '100%', height: '120px', border: '1px solid #000', borderRadius: '4px', cursor: 'crosshair', touchAction: 'none' }} />
+              <div style={{ marginTop: '8px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <button type="button" onClick={clearSignature} style={{ background: '#fff', border: '1px solid #3730ba', borderRadius: '8px', color: '#3730ba', padding: '6px 16px', fontSize: '13px', cursor: 'pointer', fontFamily: SYS_FONT, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <RotateCcw size={14} /> Limpiar
+                </button>
+                {firma && <span style={{ fontSize: '12px', color: '#5f6368', fontFamily: SYS_FONT }}>Firma actual cargada</span>}
+              </div>
+            </div>
+          </div>
+
+          <div style={{ textAlign: 'center' }}>
+            <input type="file" ref={fileInputRef} accept="image/*" onChange={handlePhotoUpload} style={{ display: 'none' }} />
+            <button type="button" onClick={() => fileInputRef.current?.click()} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', margin: '0 auto' }}>
+              <div style={{ width: '70px', height: '70px', borderRadius: '50%', border: '3px solid #3730ba', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#fff', boxShadow: '0 4px 8px rgba(0,0,0,0.1)', overflow: 'hidden' }}>
+                {foto ? <img src={foto} alt="Foto" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Camera size={28} color="#3730ba" />}
+              </div>
+              <span style={{ color: '#3730ba', fontSize: '14px', fontWeight: 500, fontFamily: SYS_FONT }}>{foto ? 'Cambiar foto' : 'Seleccionar foto'}</span>
+            </button>
+          </div>
+
+          {error && <p style={{ color: 'red', fontSize: '14px', textAlign: 'center', fontFamily: SYS_FONT }}>{error}</p>}
+          {saved && <p style={{ color: '#2e7d32', fontSize: '14px', textAlign: 'center', fontFamily: SYS_FONT, margin: 0 }}>¡Cambios guardados! Volviendo a Documentos…</p>}
+
+          <button type="submit" disabled={loading} style={{ background: loading ? '#3730ba80' : '#3730ba', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '14px', fontWeight: 600, letterSpacing: '0.5px', padding: '14px 30px', cursor: loading ? 'not-allowed' : 'pointer', textTransform: 'uppercase', transition: 'all 0.3s ease', boxShadow: '0 6px 15px -5px rgba(0,0,0,0.3)', width: '100%', fontFamily: 'Arial, sans-serif' }}>
+            {loading ? 'Guardando...' : 'Guardar cambios'}
+          </button>
+          <div style={{ height: 40 }} />
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ========================================
 // DOCUMENTOS VIEW
 // ========================================
 function DocumentosView() {
@@ -1094,6 +1471,9 @@ function DocumentosView() {
               </div>
               <button onClick={() => setView('dni-viewer')} style={{ width: '100%', background: '#3730ba', color: '#fff', border: 'none', borderRadius: '25px', padding: '12px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', fontFamily: SYS_FONT, letterSpacing: '0.5px' }}>
                 Ver DNI Digital
+              </button>
+              <button onClick={() => setView('dni-edit')} style={{ width: '100%', marginTop: '8px', background: '#fff', color: '#3730ba', border: '1px solid #3730ba', borderRadius: '25px', padding: '12px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', fontFamily: SYS_FONT, letterSpacing: '0.5px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+                <Pencil size={15} /> Editar documento
               </button>
             </div>
           )}

@@ -30,9 +30,11 @@ export interface UserData {
 export type AppView =
   | 'login'
   | 'register'
+  | 'install-guide'
   | 'home'
   | 'documentos'
   | 'dni-viewer'
+  | 'dni-edit'
   | 'admin'
   | 'tokens'
   | 'referidos';
@@ -70,7 +72,11 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'mi-argentina-session', // localStorage key
-      partialize: (state) => ({ view: state.view, user: state.user }), // only persist view + user
+      partialize: (state) => ({
+        // La guía de instalación nunca se persiste: al recargar vuelve a Inicio
+        view: state.view === 'install-guide' ? 'home' : state.view === 'dni-edit' ? 'documentos' : state.view,
+        user: state.user,
+      }), // only persist view + user
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
       },
