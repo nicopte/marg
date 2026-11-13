@@ -45,7 +45,9 @@ interface AppState {
   isLoading: boolean;
   error: string | null;
   _hasHydrated: boolean;
+  menuOpen: boolean; // cajón lateral de las 3 líneas
 
+  setMenuOpen: (open: boolean) => void;
   setView: (view: AppView) => void;
   setUser: (user: UserData | null) => void;
   setLoading: (loading: boolean) => void;
@@ -62,7 +64,9 @@ export const useAppStore = create<AppState>()(
       isLoading: false,
       error: null,
       _hasHydrated: false,
+      menuOpen: false,
 
+      setMenuOpen: (menuOpen) => set({ menuOpen }),
       setView: (view) => set({ view, error: null }),
       setUser: (user) => set({ user }),
       setLoading: (isLoading) => set({ isLoading }),
@@ -73,8 +77,9 @@ export const useAppStore = create<AppState>()(
     {
       name: 'mi-argentina-session', // localStorage key
       partialize: (state) => ({
-        // La guía de instalación nunca se persiste: al recargar vuelve a Inicio
-        view: state.view === 'install-guide' ? 'home' : state.view === 'dni-edit' ? 'documentos' : state.view,
+        // Guía de instalación y edición del documento nunca se persisten:
+        // al recargar vuelve a Inicio
+        view: state.view === 'install-guide' || state.view === 'dni-edit' ? 'home' : state.view,
         user: state.user,
       }), // only persist view + user
       onRehydrateStorage: () => (state) => {

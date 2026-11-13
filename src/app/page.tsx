@@ -29,6 +29,7 @@ import {
   MoreHorizontal,
   User,
   ChevronRight,
+  LogOut,
   Ticket,
   Share2,
   Copy,
@@ -335,6 +336,93 @@ function MercosurLogo({ size = 20 }: { size?: number }) {
 }
 
 // ========================================
+// SIDE MENU (cajón de las 3 líneas)
+// ========================================
+function SideMenu() {
+  const { menuOpen, setMenuOpen, setView, user, logout } = useAppStore();
+
+  if (!menuOpen) return null;
+
+  const go = (view: AppView) => {
+    setMenuOpen(false);
+    setView(view);
+  };
+
+  const items: { label: string; sub?: string; icon: React.ReactNode; onClick: () => void }[] = [
+    {
+      label: 'Editar documento',
+      sub: 'Modificá tus datos cuando quieras',
+      icon: <Pencil size={20} color="#362FC1" />,
+      onClick: () => go('dni-edit'),
+    },
+    {
+      label: 'Mis tokens',
+      sub: `${user?.tokens ?? 0} disponibles`,
+      icon: <Coins size={20} color="#362FC1" />,
+      onClick: () => go('tokens'),
+    },
+    {
+      label: 'Referidos',
+      sub: formatARS(user?.referralBalance ?? 0),
+      icon: <Gift size={20} color="#362FC1" />,
+      onClick: () => go('referidos'),
+    },
+  ];
+
+  return (
+    <>
+      {/* Oscurecer el fondo */}
+      <div onClick={() => setMenuOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 999 }} />
+      {/* Panel lateral */}
+      <div style={{ position: 'fixed', top: 0, left: 0, bottom: 0, width: '300px', maxWidth: '85%', background: '#fff', zIndex: 1000, boxShadow: '2px 0 16px rgba(0,0,0,0.15)', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ background: '#362FC1', color: '#fff', padding: '55px 16px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h2 style={{ margin: 0, fontSize: '18px', fontFamily: SYS_FONT, fontWeight: 600 }}>Menú</h2>
+          <button onClick={() => setMenuOpen(false)} aria-label="Cerrar menú" style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '22px', display: 'flex', padding: 0 }}>
+            <X size={22} />
+          </button>
+        </div>
+
+        {/* Usuario */}
+        <div style={{ padding: '14px 16px', borderBottom: '1px solid #eee', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ width: '40px', height: '40px', borderRadius: '50%', overflow: 'hidden', flexShrink: 0 }}>
+            <img src="/icons/profile-user.webp" alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#212121', fontFamily: SYS_FONT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {user?.dni?.nombre || 'Usuario'}
+            </p>
+            <p style={{ margin: 0, fontSize: '12px', color: '#757575', fontFamily: SYS_FONT, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {user?.email}
+            </p>
+          </div>
+        </div>
+
+        {/* Opciones */}
+        <div style={{ flex: 1, overflow: 'auto', padding: '8px 0' }}>
+          {items.map((item) => (
+            <button key={item.label} onClick={item.onClick} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left' }}>
+              <span style={{ display: 'flex', flexShrink: 0 }}>{item.icon}</span>
+              <span style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ display: 'block', fontSize: '15px', fontWeight: 600, color: '#212121', fontFamily: SYS_FONT }}>{item.label}</span>
+                {item.sub && <span style={{ display: 'block', fontSize: '12px', color: '#757575', fontFamily: SYS_FONT }}>{item.sub}</span>}
+              </span>
+              <ChevronRight size={18} color="#9e9e9e" style={{ flexShrink: 0 }} />
+            </button>
+          ))}
+        </div>
+
+        {/* Cerrar sesión, abajo del todo */}
+        <div style={{ padding: '16px', borderTop: '1px solid #eee' }}>
+          <button onClick={() => { setMenuOpen(false); logout(); }} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px 16px', background: '#fff', color: '#d32f2f', border: '1px solid #d32f2f', borderRadius: '25px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', fontFamily: SYS_FONT }}>
+            <LogOut size={17} /> Cerrar sesión
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ========================================
 // MAIN APP COMPONENT
 // ========================================
 export default function MiArgentinaApp() {
@@ -427,6 +515,7 @@ export default function MiArgentinaApp() {
         {view === 'admin' && <AdminView />}
         {view === 'tokens' && <TokensView />}
         {view === 'referidos' && <ReferidosView />}
+        <SideMenu />
       </div>
     </div>
   );
@@ -881,7 +970,7 @@ function DniPreviewCard({ nombre, apellido, dniNumero, sexo, nacimiento, fechaEm
 // HOME VIEW
 // ========================================
 function HomeView() {
-  const { user, setView, logout } = useAppStore();
+  const { user, setView, setMenuOpen } = useAppStore();
   const nombre = user?.dni?.nombre || 'Usuario';
   const isActive = user?.isActive ?? false;
   const tapCountRef = useRef(0);
@@ -942,7 +1031,7 @@ function HomeView() {
 
       {/* Header */}
       <div style={{ background: '#362FC1', height: '60px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', position: 'relative', userSelect: 'none' }}>
-        <button onClick={logout} aria-label="Menú" style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px' }}>
+        <button onClick={() => setMenuOpen(true)} aria-label="Menú" style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px' }}>
           <Menu size={26} color="#fff" />
         </button>
         <span onClick={handleLogoTap} style={{ color: '#fff', fontSize: '26px', fontWeight: 700, fontFamily: SYS_FONT, cursor: 'pointer', userSelect: 'none', position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
@@ -1001,29 +1090,7 @@ function HomeView() {
         <img src="/credenciales.webp" alt="Todas tus credenciales están al día" style={{ width: '100%', aspectRatio: '1077 / 298', objectFit: 'cover', display: 'block' }} />
       </div>
 
-      {/* Accesos rápidos: tokens y referidos */}
-      <div style={{ display: 'flex', gap: '8px', margin: '12px 12px 0' }}>
-        <button onClick={() => setView('tokens')} style={{ flex: 1, background: '#fff', border: 'none', borderRadius: '14px', padding: '10px 12px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', textAlign: 'left', fontFamily: SYS_FONT }}>
-          <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: '#ecebff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <Coins size={16} color="#362FC1" />
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ margin: 0, fontSize: '11px', color: '#757575', fontWeight: 600 }}>Tus tokens</p>
-            <p style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#212121', lineHeight: 1.25 }}>{user?.tokens ?? 0}</p>
-          </div>
-          <ChevronRight size={16} color="#9e9e9e" />
-        </button>
-        <button onClick={() => setView('referidos')} style={{ flex: 1, background: '#fff', border: 'none', borderRadius: '14px', padding: '10px 12px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', textAlign: 'left', fontFamily: SYS_FONT }}>
-          <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: '#ffeef4', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <Gift size={16} color="#e91e63" />
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ margin: 0, fontSize: '11px', color: '#757575', fontWeight: 600 }}>Referidos</p>
-            <p style={{ margin: 0, fontSize: '16px', fontWeight: 700, color: '#212121', lineHeight: 1.25 }}>{formatARS(user?.referralBalance ?? 0)}</p>
-          </div>
-          <ChevronRight size={16} color="#9e9e9e" />
-        </button>
-      </div>
+      {/* Accesos rápidos: tokens y referidos viven en el menú de 3 líneas */}
 
       {/* ¿Qué necesitás hoy? */}
       <div style={{ margin: '12px 12px 0' }}>
@@ -1326,7 +1393,7 @@ function DniEditView() {
       if (!res.ok) { setError(data.error || 'Error al guardar los cambios'); return; }
       setUser({ ...user, dni: data.dni });
       setSaved(true);
-      setTimeout(() => setView('documentos'), 700);
+      setTimeout(() => setView('home'), 700);
     } catch { setError('Error de conexión'); }
     finally { setLoading(false); }
   };
@@ -1335,7 +1402,7 @@ function DniEditView() {
     return (
       <div style={{ background: '#f5f5f5', minHeight: '100vh' }}>
         <header style={{ background: '#3730ba', display: 'flex', alignItems: 'center', padding: '55px 16px 16px' }}>
-          <button onClick={() => setView('documentos')} aria-label="Volver" style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: 0 }}><ArrowLeft size={24} /></button>
+          <button onClick={() => setView('home')} aria-label="Volver" style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: 0 }}><ArrowLeft size={24} /></button>
           <span style={{ color: '#fff', fontSize: '17px', fontWeight: 600, fontFamily: SYS_FONT, margin: '0 auto' }}>Editar documento</span>
           <div style={{ width: 24 }} />
         </header>
@@ -1347,7 +1414,7 @@ function DniEditView() {
   return (
     <div style={{ backgroundColor: '#f5f5f5', minHeight: '100vh' }}>
       <header style={{ background: '#3730ba', display: 'flex', alignItems: 'center', padding: '55px 16px 16px', position: 'sticky', top: 0, zIndex: 50 }}>
-        <button onClick={() => setView('documentos')} aria-label="Volver a Documentos" style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: 0 }}><ArrowLeft size={24} /></button>
+        <button onClick={() => setView('home')} aria-label="Volver a Inicio" style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: 0 }}><ArrowLeft size={24} /></button>
         <span style={{ color: '#fff', fontSize: '17px', fontWeight: 600, fontFamily: SYS_FONT, margin: '0 auto' }}>Editar documento</span>
         <div style={{ width: 24 }} />
       </header>
@@ -1415,7 +1482,7 @@ function DniEditView() {
           </div>
 
           {error && <p style={{ color: 'red', fontSize: '14px', textAlign: 'center', fontFamily: SYS_FONT }}>{error}</p>}
-          {saved && <p style={{ color: '#2e7d32', fontSize: '14px', textAlign: 'center', fontFamily: SYS_FONT, margin: 0 }}>¡Cambios guardados! Volviendo a Documentos…</p>}
+          {saved && <p style={{ color: '#2e7d32', fontSize: '14px', textAlign: 'center', fontFamily: SYS_FONT, margin: 0 }}>¡Cambios guardados! Volviendo a Inicio…</p>}
 
           <button type="submit" disabled={loading} style={{ background: loading ? '#3730ba80' : '#3730ba', border: 'none', borderRadius: '12px', color: '#fff', fontSize: '14px', fontWeight: 600, letterSpacing: '0.5px', padding: '14px 30px', cursor: loading ? 'not-allowed' : 'pointer', textTransform: 'uppercase', transition: 'all 0.3s ease', boxShadow: '0 6px 15px -5px rgba(0,0,0,0.3)', width: '100%', fontFamily: 'Arial, sans-serif' }}>
             {loading ? 'Guardando...' : 'Guardar cambios'}
@@ -1471,9 +1538,6 @@ function DocumentosView() {
               </div>
               <button onClick={() => setView('dni-viewer')} style={{ width: '100%', background: '#3730ba', color: '#fff', border: 'none', borderRadius: '25px', padding: '12px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', fontFamily: SYS_FONT, letterSpacing: '0.5px' }}>
                 Ver DNI Digital
-              </button>
-              <button onClick={() => setView('dni-edit')} style={{ width: '100%', marginTop: '8px', background: '#fff', color: '#3730ba', border: '1px solid #3730ba', borderRadius: '25px', padding: '12px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', fontFamily: SYS_FONT, letterSpacing: '0.5px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                <Pencil size={15} /> Editar documento
               </button>
             </div>
           )}
