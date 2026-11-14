@@ -21,6 +21,7 @@ export interface UserData {
   id: string;
   email: string;
   isActive: boolean;
+  accessUntil?: string | null; // hasta cuándo el DNI está accesible (22 h por token)
   tokens?: number;
   referralBalance?: number;
   referralCode?: string | null;

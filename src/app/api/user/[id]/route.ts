@@ -118,6 +118,7 @@ export async function GET(
           tokens: user.tokens,
           referralBalance: user.referralBalance,
           referralCode: user.referralCode,
+          accessUntil: user.accessUntil,
         },
         referralStats: {
           referralCount: referralList.length,

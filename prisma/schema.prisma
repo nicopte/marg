@@ -13,6 +13,7 @@ model User {
   email     String   @unique
   password  String
   isActive  Boolean  @default(false)
+  accessUntil DateTime? // hasta cuándo el DNI queda accesible (22 h por token activado)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   dni       DniData?

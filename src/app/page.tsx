@@ -42,6 +42,7 @@ import {
   Download,
   Share,
   Pencil,
+  Clock,
 } from 'lucide-react';
 
 // ========================================
@@ -1124,6 +1125,7 @@ function HomeView() {
   const { user, setView, setMenuOpen } = useAppStore();
   const nombre = user?.dni?.nombre || 'Usuario';
   const isActive = user?.isActive ?? false;
+  const hasAccess = isActive && hasActiveAccess(user?.accessUntil);
   const tapCountRef = useRef(0);
   const tapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showAdminPrompt, setShowAdminPrompt] = useState(false);
@@ -1196,15 +1198,19 @@ function HomeView() {
         <h1 style={{ fontSize: '20px', fontWeight: 400, color: '#fff', fontFamily: SYS_FONT, margin: 0, padding: '0 16px' }}>¡Hola {nombre}!</h1>
       </div>
 
-      {/* Aviso de cuenta pendiente de activación */}
-      {!isActive && (
+      {/* Aviso de cuenta sin acceso al DNI (sin pagar o sin tiempo activo) */}
+      {!hasAccess && (
         <div style={{ background: '#fff3e0', margin: '12px 12px 0', borderRadius: '10px', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: '12px', border: '1px solid #ffcc80' }}>
           <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#ff9800', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <Bell size={18} color="#fff" />
           </div>
           <div>
-            <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#e65100', fontFamily: SYS_FONT }}>Cuenta pendiente de activación</p>
-            <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#bf360c', fontFamily: SYS_FONT, lineHeight: 1.4 }}>Tu documento aún no está disponible. Un administrador debe activar tu cuenta para que puedas acceder a tu DNI digital.</p>
+            <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#e65100', fontFamily: SYS_FONT }}>{isActive ? 'Sin tiempo activo' : 'Cuenta pendiente de activación'}</p>
+            <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#bf360c', fontFamily: SYS_FONT, lineHeight: 1.4 }}>
+              {isActive
+                ? 'Tu DNI está disponible 22 horas por cada token. Activá uno desde «Mis tokens» o desde la vista Documentos.'
+                : 'Tu cuenta se activa sola con tu primer pago de tokens. Después, cada token te da 22 horas de acceso a tu DNI.'}
+            </p>
           </div>
         </div>
       )}
@@ -1230,7 +1236,7 @@ function HomeView() {
       </div>
 
       {/* Tarjeta verde de credenciales (imagen de la referencia) */}
-      <div style={{ margin: (!isActive || !newsDismissed) ? '12px 12px 0' : '-4% 12px 0', borderRadius: '10px', overflow: 'hidden', position: 'relative', zIndex: 2 }}>
+      <div style={{ margin: (!hasAccess || !newsDismissed) ? '12px 12px 0' : '-4% 12px 0', borderRadius: '10px', overflow: 'hidden', position: 'relative', zIndex: 2 }}>
         <img src="/credenciales.webp" alt="Todas tus credenciales están al día" style={{ width: '100%', aspectRatio: '1077 / 298', objectFit: 'cover', display: 'block' }} />
       </div>
 
@@ -1614,10 +1620,28 @@ function DniEditView() {
 // DOCUMENTOS VIEW
 // ========================================
 function DocumentosView() {
-  const { user, setView } = useAppStore();
+  const { user, setUser, setView } = useAppStore();
   const [dniExpanded, setDniExpanded] = useState(true);
   const dni = user?.dni;
   const isActive = user?.isActive ?? false;
+  const tokens = user?.tokens ?? 0;
+  const hasAccess = isActive && hasActiveAccess(user?.accessUntil);
+  const [activating, setActivating] = useState(false);
+  const [actMessage, setActMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+
+  const handleActivate = async () => {
+    if (!user || activating) return;
+    setActivating(true);
+    setActMessage(null);
+    const result = await activateToken(user.id);
+    if (result.ok) {
+      setUser({ ...user, accessUntil: result.accessUntil, tokens: result.tokens, isActive: true });
+      setActMessage({ type: 'ok', text: '¡DNI activo! Sumaste 22 horas de acceso.' });
+    } else {
+      setActMessage({ type: 'err', text: result.error });
+    }
+    setActivating(false);
+  };
 
   return (
     <div style={{ backgroundColor: '#f5f5f5', minHeight: '100vh', paddingBottom: '70px' }}>
@@ -1627,16 +1651,47 @@ function DocumentosView() {
       </header>
 
       <div style={{ padding: '12px', maxWidth: '550px', margin: '0 auto' }}>
-        {!isActive && (
-          <div style={{ background: '#fff3e0', borderRadius: '10px', padding: '14px 16px', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '12px', border: '1px solid #ffcc80' }}>
-            <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#ff9800', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-              <Bell size={18} color="#fff" />
+        {!hasAccess && (
+          <div style={{ background: '#fff3e0', borderRadius: '10px', padding: '14px 16px', marginBottom: '12px', border: '1px solid #ffcc80' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#ff9800', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <Bell size={18} color="#fff" />
+              </div>
+              <div>
+                <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#e65100', fontFamily: SYS_FONT }}>{isActive ? 'Sin tiempo activo' : 'Cuenta pendiente de activación'}</p>
+                <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#bf360c', fontFamily: SYS_FONT, lineHeight: 1.4 }}>
+                  {isActive
+                    ? 'Activá 1 token para usar tu DNI durante 22 horas.'
+                    : 'Tu cuenta se activa sola con tu primer pago de tokens. Después, cada token te da 22 horas de acceso.'}
+                </p>
+              </div>
             </div>
-            <div>
-              <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#e65100', fontFamily: SYS_FONT }}>Cuenta pendiente de activación</p>
-              <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#bf360c', fontFamily: SYS_FONT, lineHeight: 1.4 }}>Tu DNI digital no está disponible hasta que un administrador active tu cuenta.</p>
-            </div>
+            <button
+              onClick={tokens > 0 ? handleActivate : () => setView('tokens')}
+              disabled={activating}
+              style={{
+                marginTop: '12px',
+                width: '100%',
+                background: activating ? '#362FC180' : '#362FC1',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '22px',
+                padding: '11px',
+                fontSize: '14px',
+                fontWeight: 600,
+                fontFamily: SYS_FONT,
+                cursor: activating ? 'not-allowed' : 'pointer',
+                letterSpacing: '0.3px',
+              }}
+            >
+              {activating ? 'Activando...' : tokens > 0 ? 'Activar 1 token (22 horas)' : 'Comprar tokens'}
+            </button>
           </div>
+        )}
+        {actMessage && (
+          <p style={{ margin: '0 0 12px', padding: '10px 14px', borderRadius: '10px', fontSize: '13px', fontWeight: 600, fontFamily: SYS_FONT, textAlign: 'center', color: actMessage.type === 'ok' ? '#2e7d32' : '#c62828', background: actMessage.type === 'ok' ? '#e8f5e9' : '#ffebee', border: `1px solid ${actMessage.type === 'ok' ? '#a5d6a7' : '#ef9a9a'}` }}>
+          {actMessage.text}
+        </p>
         )}
         <div style={{ background: '#fff', borderRadius: '12px', marginBottom: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', overflow: 'hidden' }}>
           <button onClick={() => setDniExpanded(!dniExpanded)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '12px', padding: '16px', border: 'none', background: 'none', cursor: 'pointer', textAlign: 'left' }}>
@@ -1644,7 +1699,7 @@ function DocumentosView() {
             <span style={{ flex: 1, fontSize: '15px', fontWeight: 600, color: '#333', fontFamily: SYS_FONT }}>Documento Nacional de Identidad (DNI)</span>
             {dniExpanded ? <ChevronUp size={20} color="#999" /> : <ChevronDown size={20} color="#999" />}
           </button>
-          {dniExpanded && isActive && dni && (
+          {dniExpanded && hasAccess && dni && (
             <div style={{ padding: '0 16px 16px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
                 <div><p style={{ margin: 0, fontSize: '12px', color: '#9e9e9e', fontFamily: SYS_FONT }}>Documento</p><p style={{ margin: 0, fontSize: '15px', fontWeight: 700, color: '#333', fontFamily: SYS_FONT }}>{formatDniNumber(dni.dniNumero)}</p></div>
@@ -1742,6 +1797,26 @@ function DniViewerView() {
   }, []);
 
   if (!dni) return <div style={{ padding: 40, textAlign: 'center', fontFamily: SYS_FONT }}>No hay datos de DNI</div>;
+
+  // Acceso por tiempo (22 h por token) agotado: no se muestra el documento
+  const isActive = user?.isActive ?? false;
+  if (!(isActive && hasActiveAccess(user?.accessUntil))) {
+    return (
+      <div style={{ backgroundColor: '#f5f5f5', minHeight: '100vh' }}>
+        <header style={{ background: '#3730ba', display: 'flex', alignItems: 'center', padding: '55px 16px 16px' }}>
+          <button onClick={() => setView('documentos')} style={{ background: 'none', border: 0, cursor: 'pointer', padding: 0 }}><ArrowLeft size={24} color="#fff" /></button>
+          <span style={{ color: '#fff', fontSize: '18px', fontWeight: 700, fontFamily: SYS_FONT, margin: '0 auto', paddingRight: '24px' }}>DNI Digital</span>
+        </header>
+        <div style={{ padding: '40px 24px', textAlign: 'center', fontFamily: SYS_FONT }}>
+          <p style={{ margin: '0 0 6px', fontSize: '16px', fontWeight: 700, color: '#212121' }}>Tu acceso al DNI terminó</p>
+          <p style={{ margin: '0 0 20px', fontSize: '14px', color: '#757575', lineHeight: 1.5 }}>Activá 1 token para usar tu DNI durante 22 horas.</p>
+          <button onClick={() => setView('tokens')} style={{ background: '#362FC1', color: '#fff', border: 'none', borderRadius: '25px', padding: '12px 30px', fontSize: '14px', fontWeight: 600, cursor: 'pointer', fontFamily: SYS_FONT }}>
+            Ir a Mis tokens
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const fullName = `${dni.apellido} ${dni.nombre}`.split(' ').map(p => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()).join(' ');
 
@@ -2031,7 +2106,8 @@ function DniViewerView() {
 // ========================================
 // ADMIN VIEW
 // Secret panel (accessible via triple-tap on "miArgentina" logo)
-// Shows all registered users and allows activation/deactivation
+// Lists pending/active users. Activation happens automatically after
+// payment; the only manual action left is deactivation (ban).
 // ========================================
 function AdminView() {
   const { setView, setUser, user } = useAppStore();
@@ -2151,27 +2227,10 @@ function AdminView() {
                           <p style={{ margin: '2px 0 0', fontSize: '13px', color: '#9e9e9e', fontFamily: SYS_FONT }}>
                             DNI: {u.dni?.dniNumero || '-'} · Registrado: {new Date(u.createdAt).toLocaleDateString('es')}
                           </p>
+                          <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#bf360c', fontFamily: SYS_FONT }}>
+                            Se activa solo con el primer pago
+                          </p>
                         </div>
-                        <button
-                          onClick={() => handleActivate(u.id, true)}
-                          disabled={activating === u.id}
-                          style={{
-                            background: activating === u.id ? '#81c784' : '#4caf50',
-                            border: 'none',
-                            borderRadius: '8px',
-                            color: '#fff',
-                            padding: '8px 14px',
-                            fontSize: '13px',
-                            fontWeight: 600,
-                            cursor: activating === u.id ? 'not-allowed' : 'pointer',
-                            fontFamily: SYS_FONT,
-                            whiteSpace: 'nowrap',
-                            flexShrink: 0,
-                            marginLeft: '10px',
-                          }}
-                        >
-                          {activating === u.id ? '...' : 'Activar'}
-                        </button>
                       </div>
                     </div>
                   ))}
@@ -2245,6 +2304,7 @@ interface WalletData {
   tokens: number;
   referralBalance: number;
   referralCode: string | null;
+  accessUntil?: string | null;
 }
 
 interface ReferralStats {
@@ -2274,6 +2334,36 @@ interface PurchaseItem {
   finalPrice: number;
   status: string; // pending | approved | failed
   createdAt: string;
+}
+
+// ¿El acceso al DNI por tiempo (22 h por token) sigue vigente?
+function hasActiveAccess(accessUntil?: string | null): boolean {
+  return !!accessUntil && new Date(accessUntil).getTime() > Date.now();
+}
+
+// "21h 12m" / "45m"
+function formatRemaining(ms: number): string {
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+}
+
+// Consume 1 token y suma 22 h de acceso al DNI
+async function activateToken(
+  userId: string
+): Promise<{ ok: true; accessUntil: string; tokens: number } | { ok: false; error: string }> {
+  try {
+    const res = await fetch('/api/tokens/activate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId }),
+    });
+    const data = await res.json();
+    if (!res.ok) return { ok: false, error: data.error || 'No se pudo activar' };
+    return { ok: true, accessUntil: data.accessUntil, tokens: data.tokens };
+  } catch {
+    return { ok: false, error: 'Error de conexión' };
+  }
 }
 
 async function fetchProfile(id: string): Promise<{
@@ -2332,7 +2422,14 @@ function TokensView() {
   const [purchases, setPurchases] = useState<PurchaseItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [buying, setBuying] = useState<string | null>(null);
+  const [activating, setActivating] = useState(false);
   const [message, setMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+  // Reloj para mantener vivo el contador de tiempo restante
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(t);
+  }, []);
 
   const userId = user?.id;
 
@@ -2348,6 +2445,7 @@ function TokensView() {
           tokens: data.wallet.tokens,
           referralBalance: data.wallet.referralBalance,
           referralCode: data.wallet.referralCode,
+          accessUntil: data.wallet.accessUntil,
         });
       }
     }
@@ -2381,6 +2479,25 @@ function TokensView() {
 
   const discountBalance = wallet?.referralBalance ?? user?.referralBalance ?? 0;
   const tokens = wallet?.tokens ?? user?.tokens ?? 0;
+  const accessUntil = wallet?.accessUntil ?? user?.accessUntil ?? null;
+  const accessActive = hasActiveAccess(accessUntil);
+  const remainingMs = accessUntil ? new Date(accessUntil).getTime() - now : 0;
+
+  const handleActivate = async () => {
+    if (!user || activating) return;
+    setActivating(true);
+    setMessage(null);
+    const result = await activateToken(user.id);
+    if (result.ok) {
+      setWallet((w) => (w ? { ...w, tokens: result.tokens, accessUntil: result.accessUntil } : w));
+      setUser({ ...user, accessUntil: result.accessUntil, tokens: result.tokens, isActive: true });
+      setMessage({ type: 'ok', text: '¡DNI activo! Sumaste 22 horas de acceso.' });
+      setNow(Date.now());
+    } else {
+      setMessage({ type: 'err', text: result.error });
+    }
+    setActivating(false);
+  };
 
   const startMpPayment = async (packId: string) => {
     const res = await fetch('/api/mercadopago/create-preference', {
@@ -2482,6 +2599,44 @@ function TokensView() {
             <p style={{ margin: 0, fontSize: '13px', color: message.type === 'ok' ? '#2e7d32' : '#c62828', fontFamily: SYS_FONT, fontWeight: 600 }}>{message.text}</p>
           </div>
         )}
+
+        {/* Acceso al DNI: 22 horas por token activado */}
+        <div style={{ background: '#fff', borderRadius: '14px', padding: '16px 18px', marginTop: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.06)', border: accessActive ? '1px solid #a5d6a7' : '1px solid #ffe082' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Clock size={18} color={accessActive ? '#2e7d32' : '#f59e0b'} />
+            <span style={{ fontSize: '14px', fontWeight: 700, color: '#212121', fontFamily: SYS_FONT }}>Acceso a tu DNI</span>
+            {accessActive && (
+              <span style={{ marginLeft: 'auto', fontSize: '10px', fontWeight: 700, color: '#2e7d32', background: '#e8f5e9', border: '1px solid #a5d6a7', borderRadius: '8px', padding: '2px 8px', letterSpacing: '0.5px' }}>ACTIVO</span>
+            )}
+          </div>
+          <p style={{ margin: '8px 0 0', fontSize: '13px', color: accessActive ? '#2e7d32' : '#8d6e00', fontFamily: SYS_FONT, lineHeight: 1.5 }}>
+            {accessActive
+              ? <>Disponible hasta las <strong>{new Date(accessUntil!).toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}</strong> · quedan <strong>{formatRemaining(remainingMs)}</strong></>
+              : 'Sin tiempo activo. Activá 1 token para usar tu DNI durante 22 horas.'}
+          </p>
+          <button
+            onClick={handleActivate}
+            disabled={activating || tokens === 0}
+            style={{
+              marginTop: '12px',
+              width: '100%',
+              background: activating || tokens === 0 ? '#362FC180' : '#362FC1',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '10px',
+              padding: '11px',
+              fontSize: '14px',
+              fontWeight: 600,
+              fontFamily: SYS_FONT,
+              cursor: activating || tokens === 0 ? 'not-allowed' : 'pointer',
+            }}
+          >
+            {activating ? 'Activando...' : 'Activar 1 token (22 horas)'}
+          </button>
+          <p style={{ margin: '8px 0 0', fontSize: '12px', color: '#9e9e9e', fontFamily: SYS_FONT, textAlign: 'center' }}>
+            {tokens > 0 ? `Te quedan ${tokens} token${tokens > 1 ? 's' : ''}` : 'No tenés tokens: comprá un pack más abajo'}
+          </p>
+        </div>
 
         {/* Packs */}
         <h3 style={{ fontSize: '15px', fontWeight: 600, color: '#212121', fontFamily: SYS_FONT, margin: '18px 0 10px' }}>Comprar tokens</h3>

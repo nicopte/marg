@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
     if (!user.isActive) {
       return NextResponse.json(
         {
-          message: 'Tu cuenta está pendiente de activación',
+          message: 'Tu cuenta se activa con tu primer pago de tokens',
           user: userWithoutPassword,
         },
         { status: 200 }

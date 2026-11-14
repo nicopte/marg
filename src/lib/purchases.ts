@@ -68,9 +68,10 @@ export async function approvePurchase(
     });
     if (updated.count === 0) return false; // ya fue acreditada
 
+    // Suma los tokens y activa la cuenta: el primer pago activa al usuario
     await tx.user.update({
       where: { id: purchase.userId },
-      data: { tokens: { increment: purchase.tokens } },
+      data: { tokens: { increment: purchase.tokens }, isActive: true },
     });
 
     // Recompensa al referidor sobre lo realmente pagado
