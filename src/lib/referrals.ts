@@ -17,25 +17,25 @@ export interface TokenPack {
 export const TOKEN_PACKS: TokenPack[] = [
   {
     id: 'starter',
-    label: 'Pack Básico',
+    label: '1 Token',
     description: 'Para probar la app',
-    tokens: 10,
-    price: 5000,
+    tokens: 1,
+    price: 2480,
   },
   {
     id: 'pro',
-    label: 'Pack Pro',
+    label: '2 Tokens',
     description: 'El más elegido',
-    tokens: 30,
-    price: 12000,
+    tokens: 2,
+    price: 4190,
     popular: true,
   },
   {
     id: 'max',
-    label: 'Pack Máximo',
+    label: '5 Tokens',
     description: 'Para uso intensivo',
-    tokens: 100,
-    price: 30000,
+    tokens: 5,
+    price: 9890,
   },
 ];
 

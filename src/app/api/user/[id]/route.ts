@@ -56,6 +56,7 @@ export async function GET(
         dni: { select: { nombre: true, apellido: true } },
         purchases: {
           select: { id: true, finalPrice: true, createdAt: true },
+          where: { status: 'approved' },
           orderBy: { createdAt: 'desc' },
         },
       },
@@ -103,6 +104,7 @@ export async function GET(
         listPrice: true,
         discount: true,
         finalPrice: true,
+        status: true,
         createdAt: true,
       },
     })

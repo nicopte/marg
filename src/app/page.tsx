@@ -594,6 +594,39 @@ export default function MiArgentinaApp() {
     return false;
   };
 
+  // ===== Vuelta de Mercado Pago (Checkout Pro) =====
+  // back_urls → /?payment=success|failure|pending
+  const [paymentStatus, setPaymentStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const payment = params.get('payment');
+    if (payment === 'success' || payment === 'failure' || payment === 'pending') {
+      setPaymentStatus(payment);
+      // Limpia la URL para que no se re-procese al recargar
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!paymentStatus || !_hasHydrated) return;
+    const userId = useAppStore.getState().user?.id;
+    setPaymentStatus(null);
+    if (!userId) return;
+    (async () => {
+      try {
+        await fetch('/api/mercadopago/verify-payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId }),
+        });
+      } catch {
+        // Si falla, Mis tokens reintenta la verificación al abrirse
+      }
+      useAppStore.getState().setView('tokens');
+    })();
+  }, [paymentStatus, _hasHydrated]);
+
   useEffect(() => {
     const hide = () => {
       const portal = document.querySelector('nextjs-portal');
@@ -2239,6 +2272,7 @@ interface PurchaseItem {
   listPrice: number;
   discount: number;
   finalPrice: number;
+  status: string; // pending | approved | failed
   createdAt: string;
 }
 
@@ -2323,33 +2357,94 @@ function TokensView() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Si hay compras pendientes de Mercado Pago, verifica una vez al abrir
+  // (cubre el caso de quien paga y cierra la pestaña antes de volver)
+  const autoVerifyRef = useRef(false);
+  useEffect(() => {
+    if (autoVerifyRef.current || !userId) return;
+    if (!purchases.some((p) => p.status === 'pending')) return;
+    autoVerifyRef.current = true;
+    (async () => {
+      try {
+        await fetch('/api/mercadopago/verify-payment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId }),
+        });
+        await load();
+      } catch {
+        // Sin conexión: se reintentará en la próxima apertura
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [purchases, userId]);
+
   const discountBalance = wallet?.referralBalance ?? user?.referralBalance ?? 0;
   const tokens = wallet?.tokens ?? user?.tokens ?? 0;
+
+  const startMpPayment = async (packId: string) => {
+    const res = await fetch('/api/mercadopago/create-preference', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: user!.id, packId }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setMessage({ type: 'err', text: data.error || 'No se pudo iniciar el pago' });
+      return;
+    }
+    if (data.direct) {
+      // Entre el render y el clic el saldo cubrió el precio: sin pago
+      setUser({ ...user!, tokens: data.tokens, referralBalance: data.referralBalance });
+      setMessage({ type: 'ok', text: `¡Listo! Sumaste ${data.purchase.tokens} tokens sin pago.` });
+      await load();
+      return;
+    }
+    // Checkout Pro: el pago se hace en la página de Mercado Pago
+    window.location.href = data.initPoint;
+  };
 
   const handleBuy = async (packId: string) => {
     if (!user) return;
     setBuying(packId);
     setMessage(null);
     try {
-      const res = await fetch('/api/tokens/purchase', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.id, packId }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setMessage({ type: 'err', text: data.error || 'Error al comprar' });
+      const pack = TOKEN_PACKS.find((p) => p.id === packId);
+      if (!pack) return;
+      const appliedDiscount = Math.min(discountBalance, pack.price);
+      const finalPrice = pack.price - appliedDiscount;
+
+      if (finalPrice <= 0) {
+        // Cubierto al 100% con saldo de referidos → compra directa sin pago
+        const res = await fetch('/api/tokens/purchase', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: user.id, packId }),
+        });
+        const data = await res.json();
+        if (res.status === 402) {
+          // El saldo cambió: ahora hay saldo por pagar → Mercado Pago
+          await startMpPayment(packId);
+          return;
+        }
+        if (!res.ok) {
+          setMessage({ type: 'err', text: data.error || 'Error al comprar' });
+          return;
+        }
+        setUser({ ...user, tokens: data.tokens, referralBalance: data.referralBalance });
+        setMessage({
+          type: 'ok',
+          text:
+            `¡Listo! Sumaste ${data.purchase.tokens} tokens` +
+            (data.purchase.discount > 0 ? ` con ${formatARS(data.purchase.discount)} de descuento` : '') +
+            '.',
+        });
+        await load();
         return;
       }
-      setUser({ ...user, tokens: data.tokens, referralBalance: data.referralBalance });
-      setMessage({
-        type: 'ok',
-        text:
-          `¡Listo! Sumaste ${data.purchase.tokens} tokens` +
-          (data.purchase.discount > 0 ? ` con ${formatARS(data.purchase.discount)} de descuento` : '') +
-          '.',
-      });
-      await load();
+
+      // Hay saldo por pagar → pago con Mercado Pago (Checkout Pro)
+      await startMpPayment(packId);
     } catch {
       setMessage({ type: 'err', text: 'Error de conexión' });
     } finally {
@@ -2464,7 +2559,15 @@ function TokensView() {
             {purchases.map((p) => (
               <div key={p.id} style={{ background: '#fff', borderRadius: '10px', padding: '12px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
                 <div>
-                  <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#212121', fontFamily: SYS_FONT }}>{p.packLabel} · {p.tokens} tokens</p>
+                  <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#212121', fontFamily: SYS_FONT, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {p.packLabel} · {p.tokens} tokens
+                    {p.status === 'pending' && (
+                      <span style={{ fontSize: '10px', fontWeight: 700, color: '#8d6e00', background: '#fff3cd', border: '1px solid #ffe082', borderRadius: '8px', padding: '1px 7px' }}>PENDIENTE</span>
+                    )}
+                    {p.status === 'failed' && (
+                      <span style={{ fontSize: '10px', fontWeight: 700, color: '#c62828', background: '#ffebee', border: '1px solid #ef9a9a', borderRadius: '8px', padding: '1px 7px' }}>FALLIDA</span>
+                    )}
+                  </p>
                   <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#9e9e9e', fontFamily: SYS_FONT }}>
                     {new Date(p.createdAt).toLocaleDateString('es')}
                     {p.discount > 0 ? ` · Descuento ${formatARS(p.discount)}` : ''}

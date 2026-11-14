@@ -1,11 +1,15 @@
 import { db } from '@/lib/db'
 import { NextRequest, NextResponse } from 'next/server'
-import { findPack, REFERRAL_REWARD_PERCENT } from '@/lib/referrals'
+import { findPack } from '@/lib/referrals'
+import { approvePurchase, createPendingPurchase, failPurchase } from '@/lib/purchases'
 
 // POST /api/tokens/purchase
 // Body: { userId: string, packId: string }
-// Aplica el saldo de descuento acumulado por referidos y acredita los tokens.
-// Además acredita al referidor un % del precio realmente pagado.
+//
+// Compra SIN pago: solo se permite cuando el saldo de descuento por referidos
+// cubre el 100% del precio del pack (finalPrice === 0).
+// Si queda saldo por pagar, responde 402 y el cliente debe iniciar el pago
+// con Mercado Pago mediante POST /api/mercadopago/create-preference.
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
@@ -22,66 +26,43 @@ export async function POST(request: NextRequest) {
 
     const user = await db.user.findUnique({
       where: { id: userId },
-      select: { id: true, referralBalance: true, referredById: true },
+      select: { id: true, referralBalance: true },
     })
 
     if (!user) {
       return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 })
     }
 
-    // Descuento: todo el saldo disponible, sin superar el precio del pack
-    const balance = Math.max(0, user.referralBalance)
-    const discount = Math.min(balance, pack.price)
-    const finalPrice = pack.price - discount
-
-    // % que gana el referidor por esta compra (solo si hubo pago real)
-    const rewardAmount =
-      user.referredById && finalPrice > 0
-        ? Math.round(finalPrice * (REFERRAL_REWARD_PERCENT / 100) * 100) / 100
-        : 0
-
-    const purchase = await db.$transaction(async (tx) => {
-      const created = await tx.tokenPurchase.create({
-        data: {
-          userId: user.id,
-          packId: pack.id,
-          packLabel: pack.label,
-          tokens: pack.tokens,
-          listPrice: pack.price,
-          discount,
-          finalPrice,
+    // Sin saldo suficiente para cubrir el precio → requiere Mercado Pago
+    // (se responde antes de crear ningún registro)
+    if (Math.min(Math.max(0, user.referralBalance), pack.price) < pack.price) {
+      return NextResponse.json(
+        {
+          error: 'Este pack requiere pago con Mercado Pago',
+          code: 'payment_required',
         },
-      })
+        { status: 402 }
+      )
+    }
 
-      // Descontar saldo y acreditar tokens al comprador
-      await tx.user.update({
-        where: { id: user.id },
-        data: {
-          tokens: { increment: pack.tokens },
-          referralBalance: { decrement: discount },
+    // Reserva el descuento y arma la compra pendiente
+    const purchase = await createPendingPurchase(user.id, pack)
+
+    // Carrera: el saldo cambió entre la lectura y la creación → devolver saldo
+    if (purchase.finalPrice > 0) {
+      await failPurchase(purchase)
+      return NextResponse.json(
+        {
+          error: 'Este pack requiere pago con Mercado Pago',
+          code: 'payment_required',
         },
-      })
+        { status: 402 }
+      )
+    }
 
-      // Acreditar la recompensa al referidor
-      if (rewardAmount > 0 && user.referredById) {
-        await tx.user.update({
-          where: { id: user.referredById },
-          data: { referralBalance: { increment: rewardAmount } },
-        })
+    // Descuento cubre todo: acredita sin pago
+    await approvePurchase(purchase)
 
-        await tx.referralReward.create({
-          data: {
-            referrerId: user.referredById,
-            purchaseId: created.id,
-            amount: rewardAmount,
-          },
-        })
-      }
-
-      return created
-    })
-
-    // Estado actualizado del comprador
     const updated = await db.user.findUnique({
       where: { id: user.id },
       select: { tokens: true, referralBalance: true },
@@ -93,7 +74,7 @@ export async function POST(request: NextRequest) {
         purchase,
         tokens: updated?.tokens ?? pack.tokens,
         referralBalance: updated?.referralBalance ?? 0,
-        referralRewardGenerated: rewardAmount,
+        referralRewardGenerated: 0,
       },
       { status: 201 }
     )

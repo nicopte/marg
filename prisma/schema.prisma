@@ -42,10 +42,16 @@ model TokenPurchase {
   finalPrice    Float // precio final pagado
   createdAt     DateTime @default(now())
 
+  // ===== Mercado Pago (Checkout Pro) =====
+  status          String   @default("approved") // pending | approved | failed
+  mpPreferenceId  String? // id de la preferencia de Checkout Pro
+  mpPaymentId     String? // id del pago acreditado (idempotencia)
+
   user  User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   reward ReferralReward?
 
   @@index([userId])
+  @@index([status])
 }
 
 model ReferralReward {
