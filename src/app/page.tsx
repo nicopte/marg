@@ -423,6 +423,121 @@ function SideMenu() {
 }
 
 // ========================================
+// BOTTOM NAV (compartida por Inicio y Usuario)
+// ========================================
+function BottomNav({ activeTab }: { activeTab: 'home' | 'usuario' }) {
+  const { setView } = useAppStore();
+
+  // Mismos assets, tamaños y filtros que la referencia.
+  const navItems = [
+    { key: 'home', label: 'Inicio', icon: '/icons/logo-CASA.webp', iconStyle: { height: '30px', width: '26px' }, action: () => setView('home') },
+    { key: 'novedades', label: 'Novedades', icon: '/icons/novedadesGRIS.webp', activeIcon: '/icons/novedadesVIOLETA.webp', iconStyle: { height: '37px', width: '80px', marginLeft: '3px' }, action: () => {} },
+    { key: 'telefonos', label: 'Teléfonos', icon: '/icons/logo-TELEFONO.webp', iconStyle: { height: '37px', width: '50px', marginLeft: '-3px' }, action: () => {} },
+    { key: 'usuario', label: 'Usuario', icon: '/icons/logo-USUARIO.webp', activeIcon: '/icons/logo-USUARIO.webp', iconStyle: { height: '30px', width: '24px' }, action: () => setView('usuario') },
+  ];
+
+  return (
+    <div style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '390px', background: '#fff', borderTop: '1px solid #e0e0e0', display: 'flex', flexDirection: 'column', padding: '6px 0 0', zIndex: 50 }}>
+      <div style={{ display: 'flex', width: '100%', paddingBottom: '4px' }}>
+        {navItems.map((item) => {
+          const active = activeTab === item.key;
+          const src = active && item.activeIcon ? item.activeIcon : item.icon;
+          const filter = item.activeIcon
+            ? 'none'
+            : active
+              ? 'brightness(0) saturate(100%) invert(22%) sepia(95%) saturate(3000%) hue-rotate(240deg)'
+              : 'brightness(0) saturate(0%) invert(46%)';
+          return (
+            <button key={item.key} onClick={item.action} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2px', padding: '2px 0', flex: 1 }}>
+              <div style={{ height: '37px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <img src={src} alt="" style={{ ...item.iconStyle, objectFit: 'contain', filter }} />
+              </div>
+              <span style={{ fontSize: '12px', color: active ? '#362FC1' : '#757575', fontWeight: active ? 600 : 400, fontFamily: SYS_FONT }}>{item.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ========================================
+// USER VIEW (pestaña "Usuario": tarjeta de instalación, como la referencia)
+// ========================================
+function UsuarioView({ isInstalled, canInstall, onInstall }: { isInstalled: boolean; canInstall: boolean; onInstall: () => void }) {
+  const { setView, setMenuOpen, user } = useAppStore();
+
+  const cardStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'flex-start',
+    gap: '12px',
+    background: '#eef0ff',
+    border: '1px solid #d7d4ff',
+    borderRadius: '14px',
+    padding: '14px',
+    marginBottom: '16px',
+  };
+
+  return (
+    <div style={{ backgroundColor: '#f0f0f0', minHeight: '100vh', paddingBottom: '70px' }}>
+      <header style={{ background: '#362FC1', display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '55px 16px 16px', position: 'sticky', top: 0, zIndex: 50 }}>
+        <button onClick={() => setView('home')} aria-label="Volver a Inicio" style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', display: 'flex' }}>
+          <ArrowLeft size={24} />
+        </button>
+        <span style={{ color: '#fff', fontSize: '17px', fontWeight: 600, fontFamily: SYS_FONT }}>Usuario</span>
+        <div style={{ width: 24 }} />
+      </header>
+
+      <div style={{ padding: '16px', maxWidth: '550px', margin: '0 auto' }}>
+        {/* Tarjeta de instalación */}
+        <div style={cardStyle}>
+          <Smartphone size={21} color="#362FC1" aria-hidden="true" style={{ flexShrink: 0, marginTop: '2px' }} />
+          <div style={{ flex: 1 }}>
+            <p style={{ margin: '0 0 4px', fontSize: '14px', fontWeight: 700, color: '#292477', fontFamily: SYS_FONT }}>
+              {isInstalled ? 'Mi Argentina ya está instalada' : 'Agregá Mi Argentina a tu pantalla de inicio'}
+            </p>
+            <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.45, color: '#555', fontFamily: SYS_FONT }}>
+              Consultá cómo abrirla desde el celular como una app.
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '10px' }}>
+              {canInstall && !isInstalled && (
+                <button onClick={() => onInstall()} style={{ minHeight: '42px', display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '8px 12px', border: 'none', borderRadius: '8px', background: '#362FC1', color: '#fff', fontSize: '13px', fontWeight: 600, fontFamily: SYS_FONT, cursor: 'pointer' }}>
+                  <Download size={16} aria-hidden="true" /> Instalar app
+                </button>
+              )}
+              <button onClick={() => setView('install-guide')} style={{ minHeight: '42px', padding: '8px 12px', border: '1px solid #362FC1', borderRadius: '8px', background: '#fff', color: '#362FC1', fontSize: '13px', fontWeight: 600, fontFamily: SYS_FONT, cursor: 'pointer' }}>
+                Ver instrucciones
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Tarjeta: editar datos del documento (abre el menú de 3 líneas) */}
+        {user && (
+          <div style={cardStyle}>
+            <Pencil size={21} color="#362FC1" aria-hidden="true" style={{ flexShrink: 0, marginTop: '2px' }} />
+            <div style={{ flex: 1 }}>
+              <p style={{ margin: '0 0 4px', fontSize: '14px', fontWeight: 700, color: '#292477', fontFamily: SYS_FONT }}>
+                ¿Necesitás modificar los datos de tu documento?
+              </p>
+              <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.45, color: '#555', fontFamily: SYS_FONT }}>
+                Desde Inicio, abrí el menú ☰ de arriba a la izquierda y elegí «Editar documento».
+              </p>
+              <button onClick={() => { setView('home'); setMenuOpen(true); }} style={{ marginTop: '10px', padding: '8px 12px', border: 'none', borderRadius: '8px', background: '#362FC1', color: '#fff', fontSize: '13px', fontWeight: 600, fontFamily: SYS_FONT, cursor: 'pointer' }}>
+                Editar datos
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Navegación inferior (la referencia la muestra también en esta vista) */}
+      <BottomNav activeTab="usuario" />
+    </div>
+  );
+}
+
+// ========================================
 // MAIN APP COMPONENT
 // ========================================
 export default function MiArgentinaApp() {
@@ -515,6 +630,9 @@ export default function MiArgentinaApp() {
         {view === 'admin' && <AdminView />}
         {view === 'tokens' && <TokensView />}
         {view === 'referidos' && <ReferidosView />}
+        {view === 'usuario' && (
+          <UsuarioView isInstalled={isInstalled} canInstall={!!deferredPrompt} onInstall={handleInstall} />
+        )}
         <SideMenu />
       </div>
     </div>
@@ -1015,14 +1133,7 @@ function HomeView() {
     { icon: '/icons/serv-hijos.webp', label: 'Hijos', action: () => {}, w: 45, h: 45, scale: true },
   ];
 
-  // Barra inferior: mismos assets y filtros que la referencia.
-  const navItems = [
-    { key: 'home', label: 'Inicio', icon: '/icons/logo-CASA.webp', iconStyle: { height: '30px', width: '26px' }, action: () => setView('home') },
-    { key: 'novedades', label: 'Novedades', icon: '/icons/novedadesGRIS.webp', activeIcon: '/icons/novedadesVIOLETA.webp', iconStyle: { height: '37px', width: '80px', marginLeft: '3px' }, action: () => {} },
-    { key: 'telefonos', label: 'Teléfonos', icon: '/icons/logo-TELEFONO.webp', iconStyle: { height: '37px', width: '50px', marginLeft: '-3px' }, action: () => {} },
-    { key: 'usuario', label: 'Usuario', icon: '/icons/logo-USUARIO.webp', activeIcon: '/icons/logo-USUARIO.webp', iconStyle: { height: '30px', width: '24px' }, action: () => {} },
-  ];
-  const activeTab = 'home';
+  // Barra inferior: ver componente BottomNav (compartido con la vista Usuario).
 
   return (
     <div style={{ backgroundColor: '#f0f0f0', minHeight: '100vh', paddingBottom: '70px' }}>
@@ -1117,36 +1228,8 @@ function HomeView() {
         </div>
       </div>
 
-      {/* Entrada a la guía de instalación */}
-      <div style={{ margin: '18px 12px 0' }}>
-        <button onClick={() => setView('install-guide')} style={{ width: '100%', minHeight: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', border: '1px solid #362FC1', borderRadius: '10px', background: '#fff', color: '#362FC1', fontSize: '14px', fontWeight: 600, fontFamily: SYS_FONT, cursor: 'pointer' }}>
-          <Smartphone size={18} aria-hidden="true" />
-          Agregar Mi Argentina a tu pantalla de inicio
-        </button>
-      </div>
-
       {/* Navegación inferior */}
-      <div style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: '390px', background: '#fff', borderTop: '1px solid #e0e0e0', display: 'flex', flexDirection: 'column', padding: '6px 0 0', zIndex: 50 }}>
-        <div style={{ display: 'flex', width: '100%', paddingBottom: '4px' }}>
-          {navItems.map((item) => {
-            const active = activeTab === item.key;
-            const src = active && item.activeIcon ? item.activeIcon : item.icon;
-            const filter = item.activeIcon
-              ? 'none'
-              : active
-                ? 'brightness(0) saturate(100%) invert(22%) sepia(95%) saturate(3000%) hue-rotate(240deg)'
-                : 'brightness(0) saturate(0%) invert(46%)';
-            return (
-              <button key={item.key} onClick={item.action} style={{ background: 'none', border: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '2px', padding: '2px 0', flex: 1 }}>
-                <div style={{ height: '37px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <img src={src} alt={item.label} style={{ ...item.iconStyle, objectFit: 'contain', filter }} />
-                </div>
-                <span style={{ fontSize: '12px', color: active ? '#362FC1' : '#757575', fontWeight: active ? 600 : 400, fontFamily: SYS_FONT }}>{item.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      <BottomNav activeTab="home" />
 
       {/* Admin Password Modal */}
       {showAdminPrompt && (

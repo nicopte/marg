@@ -37,7 +37,8 @@ export type AppView =
   | 'dni-edit'
   | 'admin'
   | 'tokens'
-  | 'referidos';
+  | 'referidos'
+  | 'usuario';
 
 interface AppState {
   view: AppView;
